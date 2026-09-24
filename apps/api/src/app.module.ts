@@ -11,6 +11,9 @@ import { AuthModule } from './auth/auth.module.js';
 import { StoresModule } from './stores/stores.module.js';
 import { CategoriesModule } from './categories/categories.module.js';
 import { ProductsModule } from './products/products.module.js';
+import { CartModule } from './cart/cart.module.js';
+import { OrdersModule } from './orders/orders.module.js';
+import { PaymentsModule } from './payments/payments.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 
@@ -27,6 +30,9 @@ import { AppService } from './app.service.js';
     StoresModule,
     CategoriesModule,
     ProductsModule,
+    CartModule,
+    OrdersModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [

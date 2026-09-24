@@ -32,6 +32,22 @@ export class EnvironmentVariables {
   @IsString()
   @IsOptional()
   JWT_REFRESH_EXPIRES_IN: string = '7d';
+
+  @IsString()
+  @IsOptional()
+  STRIPE_SECRET_KEY?: string;
+
+  @IsString()
+  @IsOptional()
+  STRIPE_WEBHOOK_SECRET?: string;
+
+  @IsString()
+  @IsOptional()
+  SSLCOMMERZ_STORE_ID?: string;
+
+  @IsString()
+  @IsOptional()
+  SSLCOMMERZ_STORE_PASSWORD?: string;
 }
 
 export function validateEnvironment(config: Record<string, unknown>): EnvironmentVariables {

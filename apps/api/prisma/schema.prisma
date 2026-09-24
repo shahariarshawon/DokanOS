@@ -1,10 +1,15 @@
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 generator client {
   provider = "prisma-client-js"
 }
+
+// -------------------------------------------------------------
+// ENUMS
+// -------------------------------------------------------------
 
 enum UserRole {
   CUSTOMER
@@ -37,6 +42,40 @@ enum ProductStatus {
   ARCHIVED
 }
 
+enum OrderStatus {
+  PENDING
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum FulfillmentStatus {
+  UNFULFILLED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentProvider {
+  STRIPE
+  SSLCOMMERZ
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// -------------------------------------------------------------
+// CORE & MARKETPLACE MODELS
+// -------------------------------------------------------------
+
 model User {
   id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email            String         @unique @db.VarChar(255)
@@ -53,6 +92,8 @@ model User {
   updatedAt        DateTime       @updatedAt @db.Timestamptz
 
   sellerProfile    SellerProfile?
+  cart             Cart?
+  orders           Order[]
 
   @@index([role, status])
   @@index([createdAt])
@@ -98,6 +139,7 @@ model Store {
 
   sellerProfile   SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Restrict)
   products        Product[]
+  orderItems      OrderItem[]
 
   @@index([sellerProfileId])
   @@index([status, rating])
@@ -150,6 +192,8 @@ model Product {
   store             Store          @relation(fields: [storeId], references: [id], onDelete: Restrict)
   category          Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   images            ProductImage[]
+  cartItems         CartItem[]
+  orderItems        OrderItem[]
 
   @@unique([storeId, sku])
   @@index([storeId, status])
@@ -172,4 +216,116 @@ model ProductImage {
 
   @@index([productId, sortOrder])
   @@map("product_images")
+}
+
+// -------------------------------------------------------------
+// COMMERCE WORKFLOW: CART, ORDER, PAYMENT
+// -------------------------------------------------------------
+
+model Cart {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String?    @unique @db.Uuid
+  sessionToken String?    @unique @db.VarChar(255)
+  createdAt    DateTime   @default(now()) @db.Timestamptz
+  updatedAt    DateTime   @updatedAt @db.Timestamptz
+
+  user         User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items        CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cartId             String   @db.Uuid
+  productId          String   @db.Uuid
+  quantity           Int      @default(1)
+  selectedAttributes Json?    @db.JsonB
+  createdAt          DateTime @default(now()) @db.Timestamptz
+  updatedAt          DateTime @updatedAt @db.Timestamptz
+
+  cart               Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product            Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productId])
+  @@index([cartId])
+  @@index([productId])
+  @@map("cart_items")
+}
+
+model Order {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderNumber     String        @unique @db.VarChar(50)
+  userId          String        @db.Uuid
+  status          OrderStatus   @default(PENDING)
+  subtotal        Decimal       @db.Decimal(12, 2)
+  taxAmount       Decimal       @default(0.00) @db.Decimal(12, 2)
+  shippingAmount  Decimal       @default(0.00) @db.Decimal(12, 2)
+  discountAmount  Decimal       @default(0.00) @db.Decimal(12, 2)
+  totalAmount     Decimal       @db.Decimal(12, 2)
+  currency        String        @default("USD") @db.VarChar(3)
+  shippingAddress Json          @db.JsonB
+  billingAddress  Json          @db.JsonB
+  customerNote    String?       @db.Text
+  placedAt        DateTime      @default(now()) @db.Timestamptz
+  updatedAt       DateTime      @updatedAt @db.Timestamptz
+
+  user            User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  items           OrderItem[]
+  payments        Payment[]
+
+  @@index([userId, status])
+  @@index([placedAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                 String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId            String            @db.Uuid
+  productId          String?           @db.Uuid
+  storeId            String            @db.Uuid
+  productTitle       String            @db.VarChar(255)
+  productSku         String?           @db.VarChar(100)
+  unitPrice          Decimal           @db.Decimal(12, 2)
+  quantity           Int               @default(1)
+  totalPrice         Decimal           @db.Decimal(12, 2)
+  commissionRate     Decimal           @default(10.00) @db.Decimal(5, 2)
+  commissionAmount   Decimal           @db.Decimal(12, 2)
+  vendorPayoutAmount Decimal           @db.Decimal(12, 2)
+  selectedAttributes Json?             @db.JsonB
+  fulfillmentStatus  FulfillmentStatus @default(UNFULFILLED)
+  trackingNumber     String?           @db.VarChar(100)
+  carrier            String?           @db.VarChar(100)
+  createdAt          DateTime          @default(now()) @db.Timestamptz
+  updatedAt          DateTime          @updatedAt @db.Timestamptz
+
+  order              Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product            Product?          @relation(fields: [productId], references: [id], onDelete: SetNull)
+  store              Store             @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([storeId, fulfillmentStatus])
+  @@map("order_items")
+}
+
+model Payment {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId            String          @db.Uuid
+  provider           PaymentProvider
+  transactionId      String          @db.VarChar(255)
+  paymentMethod      String?         @db.VarChar(50)
+  amount             Decimal         @db.Decimal(12, 2)
+  currency           String          @default("USD") @db.VarChar(3)
+  status             PaymentStatus   @default(PENDING)
+  rawGatewayResponse Json?           @db.JsonB
+  paidAt             DateTime?       @db.Timestamptz
+  createdAt          DateTime        @default(now()) @db.Timestamptz
+  updatedAt          DateTime        @updatedAt @db.Timestamptz
+
+  order              Order           @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@unique([provider, transactionId])
+  @@index([orderId])
+  @@index([status])
+  @@map("payments")
 }
