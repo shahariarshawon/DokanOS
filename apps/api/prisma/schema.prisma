@@ -194,6 +194,7 @@ model Product {
   images            ProductImage[]
   cartItems         CartItem[]
   orderItems        OrderItem[]
+  embedding         ProductEmbedding?
 
   @@unique([storeId, sku])
   @@index([storeId, status])
@@ -328,4 +329,21 @@ model Payment {
   @@index([orderId])
   @@index([status])
   @@map("payments")
+}
+
+// -------------------------------------------------------------
+// AI INTELLIGENCE & VECTOR EMBEDDINGS
+// -------------------------------------------------------------
+
+model ProductEmbedding {
+  id        String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId String                       @unique @db.Uuid
+  content   String                       @db.Text
+  embedding Unsupported("vector(1536)")?
+  createdAt DateTime                     @default(now()) @db.Timestamptz
+  updatedAt DateTime                     @updatedAt @db.Timestamptz
+
+  product   Product                      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_embeddings")
 }

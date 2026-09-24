@@ -2,17 +2,24 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, Product } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service.js';
+import { AiService } from '../ai/ai.service.js';
 import { CreateProductDto } from './dto/create-product.dto.js';
 import { UpdateProductDto } from './dto/update-product.dto.js';
 import { ProductSortBy, QueryProductDto } from './dto/query-product.dto.js';
 
 @Injectable()
 export class ProductsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(ProductsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aiService: AiService,
+  ) {}
 
   async create(userId: string, dto: CreateProductDto): Promise<Product> {
     // 1. Verify store exists and caller is owner or admin
@@ -67,7 +74,7 @@ export class ProductsService {
     }
 
     // 5. Create product and nested images
-    return this.prisma.product.create({
+    const product = await this.prisma.product.create({
       data: {
         storeId: dto.storeId,
         categoryId: dto.categoryId,
@@ -101,6 +108,13 @@ export class ProductsService {
         category: { select: { id: true, name: true, slug: true } },
       },
     });
+
+    // Asynchronously generate vector embedding in pgvector pipeline
+    this.aiService.indexProductEmbedding(product.id).catch((err) => {
+      this.logger.warn(`Failed to auto-index embedding for product ${product.id}: ${err.message}`);
+    });
+
+    return product;
   }
 
   async findAll(query: QueryProductDto) {
@@ -262,7 +276,7 @@ export class ProductsService {
       };
     }
 
-    return this.prisma.product.update({
+    const updated = await this.prisma.product.update({
       where: { id: productId },
       data,
       include: {
@@ -271,6 +285,13 @@ export class ProductsService {
         category: { select: { id: true, name: true, slug: true } },
       },
     });
+
+    // Re-index product embedding with updated content
+    this.aiService.indexProductEmbedding(updated.id).catch((err) => {
+      this.logger.warn(`Failed to update embedding for product ${updated.id}: ${err.message}`);
+    });
+
+    return updated;
   }
 
   async remove(userId: string, productId: string): Promise<{ message: string }> {

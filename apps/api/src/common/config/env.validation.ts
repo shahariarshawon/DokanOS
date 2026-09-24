@@ -48,6 +48,14 @@ export class EnvironmentVariables {
   @IsString()
   @IsOptional()
   SSLCOMMERZ_STORE_PASSWORD?: string;
+
+  @IsString()
+  @IsOptional()
+  AI_SERVICE_URL: string = 'http://localhost:8000';
+
+  @IsString()
+  @IsOptional()
+  AI_INTERNAL_KEY?: string;
 }
 
 export function validateEnvironment(config: Record<string, unknown>): EnvironmentVariables {

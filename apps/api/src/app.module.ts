@@ -14,6 +14,7 @@ import { ProductsModule } from './products/products.module.js';
 import { CartModule } from './cart/cart.module.js';
 import { OrdersModule } from './orders/orders.module.js';
 import { PaymentsModule } from './payments/payments.module.js';
+import { AiModule } from './ai/ai.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 
@@ -33,6 +34,7 @@ import { AppService } from './app.service.js';
     CartModule,
     OrdersModule,
     PaymentsModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [

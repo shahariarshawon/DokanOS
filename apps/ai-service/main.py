@@ -1,15 +1,5 @@
-from fastapi import FastAPI
+import uvicorn
+from app.main import app
 
-app = FastAPI(
-    title="DokanOS AI Service",
-    description="AI service for DokanOS marketplace",
-    version="0.0.1"
-)
-
-@app.get("/")
-def health():
-    return {
-        "app_name": "DokanOS AI Service",
-        "version": "0.0.1",
-        "status": "healthy"
-    }
+if __name__ == "__main__":
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

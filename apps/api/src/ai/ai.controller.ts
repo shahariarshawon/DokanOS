@@ -1,0 +1,65 @@
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { AiService } from './ai.service.js';
+import { ShoppingChatDto } from './dto/shopping-chat.dto.js';
+import { SellerGenerateDto } from './dto/seller-generate.dto.js';
+import { SyncEmbeddingsDto } from './dto/sync-embeddings.dto.js';
+import { Public } from '../common/decorators/public.decorator.js';
+import { Roles } from '../common/decorators/roles.decorator.js';
+import { RolesGuard } from '../common/guards/roles.guard.js';
+
+@ApiTags('AI Intelligence')
+@Controller('ai')
+export class AiController {
+  constructor(private readonly aiService: AiService) {}
+
+  @Public()
+  @ApiOperation({
+    summary: 'AI Shopping Assistant Chat (RAG + pgvector)',
+    description:
+      'Natural language conversational search. Embeds user query, queries pgvector database using cosine distance, and synthesizes contextual product recommendations.',
+  })
+  @ApiResponse({ status: 200, description: 'AI conversational response with recommended products' })
+  @Post('chat')
+  @HttpCode(HttpStatus.OK)
+  async shoppingChat(@Body() dto: ShoppingChatDto) {
+    return this.aiService.chatShoppingAssistant(dto);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(RolesGuard)
+  @Roles('SELLER', 'ADMIN')
+  @ApiOperation({
+    summary: 'AI Seller Assistant (Description & SEO Copilot)',
+    description:
+      'Generates high-converting markdown product descriptions, SEO keywords, meta tags, and category tags based on product specifications.',
+  })
+  @ApiResponse({ status: 200, description: 'Generated description and SEO metadata' })
+  @Post('product-description')
+  @HttpCode(HttpStatus.OK)
+  async generateSellerCopy(@Body() dto: SellerGenerateDto) {
+    return this.aiService.generateSellerCopy(dto);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  @ApiOperation({
+    summary: 'Trigger bulk pgvector embedding synchronization',
+    description:
+      'Iterates across marketplace products and generates 1536-dimensional vector embeddings stored in pgvector table.',
+  })
+  @ApiResponse({ status: 200, description: 'Bulk sync summary' })
+  @Post('embeddings/sync')
+  @HttpCode(HttpStatus.OK)
+  async syncEmbeddings(@Body() dto: SyncEmbeddingsDto) {
+    return this.aiService.syncAllEmbeddings(dto);
+  }
+}
