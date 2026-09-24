@@ -72,6 +72,15 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum NotificationType {
+  ORDER_STATUS
+  PAYMENT_SUCCESS
+  CHAT_MESSAGE
+  SYSTEM_ALERT
+  STOCK_LOW
+  SELLER_UPDATE
+}
+
 // -------------------------------------------------------------
 // CORE & MARKETPLACE MODELS
 // -------------------------------------------------------------
@@ -94,6 +103,9 @@ model User {
   sellerProfile    SellerProfile?
   cart             Cart?
   orders           Order[]
+  notifications    Notification[]
+  messagesSent     Message[]
+  conversations    Conversation[]    @relation("CustomerConversations")
 
   @@index([role, status])
   @@index([createdAt])
@@ -140,6 +152,7 @@ model Store {
   sellerProfile   SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Restrict)
   products        Product[]
   orderItems      OrderItem[]
+  conversations   Conversation[]
 
   @@index([sellerProfileId])
   @@index([status, rating])
@@ -274,6 +287,7 @@ model Order {
   user            User          @relation(fields: [userId], references: [id], onDelete: Restrict)
   items           OrderItem[]
   payments        Payment[]
+  conversations   Conversation[]
 
   @@index([userId, status])
   @@index([placedAt])
@@ -347,3 +361,63 @@ model ProductEmbedding {
 
   @@map("product_embeddings")
 }
+
+// -------------------------------------------------------------
+// REAL-TIME COMMUNICATION: CONVERSATION, MESSAGE, NOTIFICATION
+// -------------------------------------------------------------
+
+model Conversation {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  customerId    String    @db.Uuid
+  storeId       String    @db.Uuid
+  orderId       String?   @db.Uuid
+  lastMessageAt DateTime  @default(now()) @db.Timestamptz
+  createdAt     DateTime  @default(now()) @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @db.Timestamptz
+
+  customer      User      @relation("CustomerConversations", fields: [customerId], references: [id], onDelete: Restrict)
+  store         Store     @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  order         Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  messages      Message[]
+
+  @@unique([customerId, storeId, orderId])
+  @@index([customerId, lastMessageAt])
+  @@index([storeId, lastMessageAt])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId String       @db.Uuid
+  senderId       String       @db.Uuid
+  content        String       @db.Text
+  attachments    Json?        @db.JsonB
+  isRead         Boolean      @default(false)
+  readAt         DateTime?    @db.Timestamptz
+  createdAt      DateTime     @default(now()) @db.Timestamptz
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Restrict)
+
+  @@index([conversationId, createdAt])
+  @@index([senderId, isRead])
+  @@map("messages")
+}
+
+model Notification {
+  id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String           @db.Uuid
+  type      NotificationType
+  title     String           @db.VarChar(200)
+  body      String           @db.Text
+  payload   Json?            @db.JsonB
+  isRead    Boolean          @default(false)
+  readAt    DateTime?        @db.Timestamptz
+  createdAt DateTime         @default(now()) @db.Timestamptz
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@map("notifications")
+}
+

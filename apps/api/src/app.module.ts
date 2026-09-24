@@ -16,6 +16,9 @@ import { CartModule } from './cart/cart.module.js';
 import { OrdersModule } from './orders/orders.module.js';
 import { PaymentsModule } from './payments/payments.module.js';
 import { AiModule } from './ai/ai.module.js';
+import { RedisModule } from './common/redis/redis.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
+import { ChatModule } from './chat/chat.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 
@@ -27,6 +30,7 @@ import { AppService } from './app.service.js';
       envFilePath: ['.env'],
     }),
     DatabaseModule,
+    RedisModule,
     UsersModule,
     AuthModule,
     StoresModule,
@@ -36,6 +40,8 @@ import { AppService } from './app.service.js';
     OrdersModule,
     PaymentsModule,
     AiModule,
+    NotificationsModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [

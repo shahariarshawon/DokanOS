@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
+import { RedisIoAdapter } from './common/adapters/redis-io.adapter.js';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -38,6 +39,11 @@ async function bootstrap() {
     origin: true,
     credentials: true,
   });
+
+  // Setup Redis Socket.io Adapter for horizontal clustering and cross-instance communication
+  const redisIoAdapter = new RedisIoAdapter(app, configService);
+  await redisIoAdapter.connectToRedis();
+  app.useWebSocketAdapter(redisIoAdapter);
 
   // Setup Swagger OpenAPI Documentation
   const swaggerConfig = new DocumentBuilder()
