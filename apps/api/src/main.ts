@@ -1,10 +1,36 @@
+import { Logger, ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
-import { AppModule, ObserveInstrument } from './app.module.js';
+import { AppModule } from './app.module.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
-    instrument: ObserveInstrument,
+  const logger = new Logger('Bootstrap');
+  const app = await NestFactory.create(AppModule);
+
+  const configService = app.get(ConfigService);
+  const port = configService.get<number>('PORT', 4000);
+  const env = configService.get<string>('NODE_ENV', 'development');
+
+  app.setGlobalPrefix('api/v1');
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    }),
+  );
+
+  app.enableCors({
+    origin: true,
+    credentials: true,
   });
-  await app.listen(process.env.PORT ?? 3000);
+
+  await app.listen(port);
+  logger.log(`🚀 DokanOS Core API running in [${env}] mode on port ${port} (http://localhost:${port}/api/v1)`);
 }
-await bootstrap();
+
+bootstrap();

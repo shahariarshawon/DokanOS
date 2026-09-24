@@ -1,0 +1,39 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  CUSTOMER
+  SELLER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+model User {
+  id               String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email            String     @unique @db.VarChar(255)
+  passwordHash     String     @db.VarChar(255)
+  firstName        String     @db.VarChar(100)
+  lastName         String     @db.VarChar(100)
+  phone            String?    @db.VarChar(30)
+  avatarUrl        String?    @db.Text
+  role             UserRole   @default(CUSTOMER)
+  status           UserStatus @default(ACTIVE)
+  refreshTokenHash String?    @db.VarChar(255)
+  emailVerifiedAt  DateTime?  @db.Timestamptz
+  createdAt        DateTime   @default(now()) @db.Timestamptz
+  updatedAt        DateTime   @updatedAt @db.Timestamptz
+
+  @@index([role, status])
+  @@index([createdAt])
+  @@map("users")
+}
