@@ -1,0 +1,146 @@
+services:
+  # -------------------------------------------------------------
+  # Reverse Proxy & Edge SSL Termination (Caddy)
+  # -------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    container_name: dokanos-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    networks:
+      - dokanos_net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # -------------------------------------------------------------
+  # Frontend Storefront & Dashboard (Next.js 15 Standalone)
+  # -------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: dokanos-web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: "https://${DOMAIN_NAME:-dokanos.com}/api/v1"
+    networks:
+      - dokanos_net
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1536M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # -------------------------------------------------------------
+  # Core Backend API (NestJS Modular Monolith)
+  # -------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: dokanos-api
+    restart: unless-stopped
+    env_file:
+      - apps/api/.env
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      AI_SERVICE_URL: "http://ai-service:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+    networks:
+      - dokanos_net
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2048M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # -------------------------------------------------------------
+  # AI Intelligence Microservice (FastAPI + pgvector)
+  # -------------------------------------------------------------
+  ai-service:
+    build:
+      context: apps/ai-service
+      dockerfile: Dockerfile
+    container_name: dokanos-ai-service
+    restart: unless-stopped
+    env_file:
+      - apps/ai-service/.env
+    environment:
+      PORT: 8000
+      HOST: "0.0.0.0"
+    networks:
+      - dokanos_net
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2048M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # -------------------------------------------------------------
+  # Distributed Cache & Rate Limiting (Redis 7)
+  # -------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: dokanos-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-dokanos_redis_secure_pass_2026}
+    volumes:
+      - redis_data:/data
+    networks:
+      - dokanos_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-dokanos_redis_secure_pass_2026}", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  dokanos_net:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:
+  redis_data:

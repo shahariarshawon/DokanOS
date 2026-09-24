@@ -25,6 +25,15 @@ async function bootstrap() {
     }),
   );
 
+  // Enable graceful shutdown hooks for SIGTERM / SIGINT
+  app.enableShutdownHooks();
+
+  // Trust reverse proxy headers (Caddy / Nginx / Cloudflare)
+  const expressApp = app.getHttpAdapter().getInstance() as { set: (k: string, v: unknown) => void };
+  if (typeof expressApp.set === 'function') {
+    expressApp.set('trust proxy', 1);
+  }
+
   app.enableCors({
     origin: true,
     credentials: true,

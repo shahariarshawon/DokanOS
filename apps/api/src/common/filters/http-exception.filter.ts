@@ -51,8 +51,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
         }
       }
     } else if (exception instanceof Error) {
-      this.logger.error(`Unhandled Exception: ${exception.message}`, exception.stack);
       message = exception.message;
+    }
+
+    const correlationId = (request.headers['x-request-id'] as string) || (response.getHeader('x-request-id') as string);
+
+    if (status >= 500) {
+      this.logger.error(
+        `Internal Server Error [${correlationId}] on ${request.method} ${request.url}: ${message}`,
+        exception instanceof Error ? exception.stack : undefined,
+      );
+    } else {
+      this.logger.warn(`Client Error [${correlationId}] on ${request.method} ${request.url} (${status}): ${message}`);
     }
 
     response.status(status).json({
@@ -63,6 +73,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message,
         details,
       },
+      correlationId,
       timestamp: new Date().toISOString(),
       path: request.url,
     });

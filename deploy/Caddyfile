@@ -1,0 +1,51 @@
+{
+    # Global options
+    email {$ACME_EMAIL:admin@dokanos.com}
+    admin off
+}
+
+# Production Domain Ingress
+{$DOMAIN_NAME:localhost} {
+    encode gzip zstd
+
+    # Security Headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    # API Routes -> NestJS Backend Gateway
+    handle /api/* {
+        reverse_proxy api:4000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Swagger Documentation -> NestJS Backend
+    handle /api/docs* {
+        reverse_proxy api:4000
+    }
+
+    # Next.js Static Files & Uploads caching
+    handle /_next/static/* {
+        reverse_proxy web:3000
+        header Cache-Control "public, max-age=31536000, immutable"
+    }
+
+    # Frontend Storefront & App -> Next.js Standalone Runner
+    handle /* {
+        reverse_proxy web:3000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+}

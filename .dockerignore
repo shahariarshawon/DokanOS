@@ -1,0 +1,17 @@
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/build
+**/.git
+**/.env
+**/.env.*
+!**/.env.example
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+**/coverage
+**/.vscode
+**/.idea
+.system_generated

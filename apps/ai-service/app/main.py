@@ -33,6 +33,25 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+import time
+import uuid
+from fastapi import Request, Response
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        start_time = time.perf_counter()
+        req_id = request.headers.get("x-request-id", str(uuid.uuid4()))
+        response: Response = await call_next(request)
+        duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
+        response.headers["X-Request-Id"] = req_id
+        logger.info(
+            f"HTTP {request.method} {request.url.path} -> {response.status_code} in {duration_ms}ms [Req-ID: {req_id}]"
+        )
+        return response
+
+app.add_middleware(RequestLoggingMiddleware)
+
 # Enable CORS for local and web clients
 app.add_middleware(
     CORSMiddleware,
