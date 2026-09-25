@@ -2,17 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import {
-  BarChart3,
-  Building2,
-  Store,
-  RefreshCw,
-  Calendar,
-  Sparkles,
-  Bot,
-  Layers,
-  ArrowLeft,
-} from 'lucide-react';
+import { Building2, Store, RefreshCw, Calendar, ArrowLeft } from 'lucide-react';
 import {
   TimeRange,
   SellerDashboardResult,
@@ -31,12 +21,34 @@ export default function AnalyticsDashboardPage() {
   const [adminData, setAdminData] = useState<AdminDashboardResult | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
 
-  async function loadData(range: TimeRange = timeRange) {
+  useEffect(() => {
+    let active = true;
+    Promise.all([fetchSellerDashboard(timeRange), fetchAdminDashboard(timeRange)])
+      .then(([sRes, aRes]) => {
+        if (active) {
+          setSellerData(sRes);
+          setAdminData(aRes);
+          setLastRefreshed(new Date());
+          setIsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [timeRange]);
+
+  const handleManualRefresh = async () => {
     setIsLoading(true);
     try {
       const [sRes, aRes] = await Promise.all([
-        fetchSellerDashboard(range),
-        fetchAdminDashboard(range),
+        fetchSellerDashboard(timeRange),
+        fetchAdminDashboard(timeRange),
       ]);
       setSellerData(sRes);
       setAdminData(aRes);
@@ -44,11 +56,7 @@ export default function AnalyticsDashboardPage() {
     } finally {
       setIsLoading(false);
     }
-  }
-
-  useEffect(() => {
-    loadData(timeRange);
-  }, [timeRange]);
+  };
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 flex flex-col font-sans">
@@ -77,14 +85,17 @@ export default function AnalyticsDashboardPage() {
         <div className="flex items-center gap-3 text-xs">
           <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono text-[11px]">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Live Sync: {lastRefreshed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            Live Sync:{' '}
+            {lastRefreshed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
           <button
-            onClick={() => loadData(timeRange)}
+            onClick={handleManualRefresh}
             disabled={isLoading}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white transition-colors disabled:opacity-50 text-xs"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-indigo-400' : ''}`} />
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-indigo-400' : ''}`}
+            />
             <span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
@@ -97,6 +108,8 @@ export default function AnalyticsDashboardPage() {
           {/* Tab Selector */}
           <div className="flex items-center p-1 rounded-xl bg-zinc-900/90 border border-zinc-800 w-fit">
             <button
+              id="tab-seller-btn"
+              data-testid="tab-seller-dashboard"
               onClick={() => setActiveTab('seller')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
                 activeTab === 'seller'
@@ -108,6 +121,8 @@ export default function AnalyticsDashboardPage() {
               Seller Dashboard
             </button>
             <button
+              id="tab-admin-btn"
+              data-testid="tab-admin-dashboard"
               onClick={() => setActiveTab('admin')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
                 activeTab === 'admin'
@@ -133,7 +148,13 @@ export default function AnalyticsDashboardPage() {
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                {r === '7d' ? '7 Days' : r === '30d' ? '30 Days' : r === '90d' ? '90 Days' : '1 Year'}
+                {r === '7d'
+                  ? '7 Days'
+                  : r === '30d'
+                    ? '30 Days'
+                    : r === '90d'
+                      ? '90 Days'
+                      : '1 Year'}
               </button>
             ))}
           </div>
@@ -155,7 +176,10 @@ export default function AnalyticsDashboardPage() {
 
       {/* Footer */}
       <footer className="border-t border-zinc-900 bg-zinc-950 py-6 px-6 text-center text-xs text-zinc-500">
-        <p>DokanOS Phase 8 Analytics & Business Intelligence Engine • Real-time event tracking and telemetry pipeline</p>
+        <p>
+          DokanOS Phase 8 Analytics & Business Intelligence Engine • Real-time event tracking and
+          telemetry pipeline
+        </p>
       </footer>
     </div>
   );

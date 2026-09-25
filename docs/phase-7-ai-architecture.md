@@ -3,6 +3,7 @@
 ## 1. Executive Summary & Architecture Overview
 
 DokanOS Phase 7 introduces an autonomous, production-grade AI microservice designed to power intelligent marketplace capabilities for both buyers and merchants:
+
 1. **AI Shopping Assistant (RAG Pipeline)**: Intent-aware conversational product discovery with transparent recommendation explanations.
 2. **Product Embedding Pipeline**: Automatic 1536-dimensional semantic vector indexing in PostgreSQL `pgvector` incorporating titles, descriptions, categories, and structured JSON attributes.
 3. **AI Seller Assistant (Copilot)**: Automated high-converting product descriptions, SEO keywords, promotional marketing copy, and marketplace tags.
@@ -51,6 +52,7 @@ DokanOS Phase 7 introduces an autonomous, production-grade AI microservice desig
 ## 2. Directory Structure & Independence
 
 The AI microservice is isolated inside `apps/ai-service/` and accessible via `modules/`:
+
 ```
 apps/ai-service/
 ├── modules/
@@ -90,7 +92,9 @@ apps/ai-service/
 ## 3. Feature Breakdown & Implementation Details
 
 ### Feature 1: AI Shopping Assistant (RAG Pipeline)
+
 **Flow**:
+
 1. **User Query**: e.g., `"Suggest a laptop for programming under $1000"`.
 2. **Intent Parsing (`QueryIntentParser`)**:
    - Detects category domain: `"laptop"`.
@@ -104,18 +108,21 @@ apps/ai-service/
 5. **Context Augmentation**: Formats retrieved products with title, price, store, rating, attributes, and reason tags.
 6. **LLM Synthesis & Explainability**:
    - Passes grounded context and system instructions.
-   - Generates personalized recommendations explaining *why* each product satisfies the query:
+   - Generates personalized recommendations explaining _why_ each product satisfies the query:
      - Confirms budget compliance (e.g., "$899 is $101 under your $1000 budget").
      - Confirms hardware suitability for programming.
    - Includes graceful fallback if external LLM APIs are unreachable.
 
 ### Feature 2: Product Embedding Pipeline
+
 **Trigger**:
+
 - Dispatched automatically and asynchronously when a product is created or updated in NestJS `ProductsService`.
 - Can also be invoked manually or via bulk sync endpoint `POST /v1/embeddings/sync`.
 
 **Semantic Document Construction**:
 Incorporates all key product signals:
+
 - **Title**: Primary identity
 - **Category**: Name and taxonomic path
 - **Merchant Store**: Seller identity
@@ -124,6 +131,7 @@ Incorporates all key product signals:
 - **Attributes**: Formatted key-value attributes (e.g. `RAM: 16GB`, `Brand: Apple`, `Storage: 512GB SSD`)
 
 **Database Upsert**:
+
 ```sql
 INSERT INTO product_embeddings (id, "productId", content, embedding, "createdAt", "updatedAt")
 VALUES (gen_random_uuid(), $1::uuid, $2, $3, NOW(), NOW())
@@ -134,10 +142,13 @@ ON CONFLICT ("productId") DO UPDATE SET
 ```
 
 ### Feature 3: AI Seller Assistant (Copilot)
+
 **Input**:
+
 - `product_name`, `category`, `features` (list of specifications), `tone` (PROFESSIONAL, PERSUASIVE, LUXURY, etc.).
 
 **Outputs**:
+
 - **Description**: Rich Markdown with headlines, bullet points, spec summary, and buyer guarantees.
 - **SEO Keywords**: 10+ high-intent search terms (primary and long-tail).
 - **Marketing Text**: 1-2 punchy promotional sentences designed for social ads, banners, and hero headers.
@@ -146,11 +157,13 @@ ON CONFLICT ("productId") DO UPDATE SET
 - **Key Selling Points**: 3-5 concise bullet points highlighting unique value propositions.
 
 ### Feature 4: Product Recommendation System (Content-Based)
+
 **Initial Version**: Pure content-based engine without complex ML overhead.
 **Composite Scoring Formula**:
 $$\text{Score} = 0.45 \times S_{\text{vector}} + 0.25 \times C_{\text{category}} + 0.15 \times P_{\text{price}} + 0.10 \times \left(\frac{R}{5.0}\right) + 0.05 \times A_{\text{attributes}}$$
 
 Where:
+
 - $S_{\text{vector}}$: Cosine similarity $1.0 - (pe.embedding \Leftrightarrow target\_embedding)$.
 - $C_{\text{category}}$: $1.0$ if category matches source product, otherwise $0.0$.
 - $P_{\text{price}}$: Price proximity $1.0 - \min\left(1.0, \frac{|price - target\_price|}{target\_price}\right)$.
@@ -159,6 +172,7 @@ Where:
 
 **Match Explanations**:
 Each recommended item provides human-readable match reasons, such as:
+
 - `"Same Category: Laptops & Computers"`
 - `"Similar price tier ($899 vs $949)"`
 - `"88% visual & descriptive similarity"`
@@ -169,25 +183,27 @@ Each recommended item provides human-readable match reasons, such as:
 ## 4. API Contracts
 
 ### AI Service (FastAPI) Endpoints
-| Method | Path | Description | Access |
-|---|---|---|---|
-| `POST` | `/v1/shopping/chat` | AI Shopping Assistant RAG Chat | Internal / Public |
-| `POST` | `/v1/seller/generate` | AI Seller Copilot Marketing & SEO Generator | Internal / Seller |
-| `POST` | `/v1/rag/parse-intent` | Natural Language Query Intent Extractor | Internal |
-| `POST` | `/v1/embeddings/product/{id}` | Index Single Product into pgvector | Internal / Backend |
-| `POST` | `/v1/embeddings/sync` | Bulk Sync Marketplace Embeddings | Internal / Admin |
-| `POST` | `/v1/embeddings/generate` | Direct 1536-dim Text Vector Generation | Internal |
-| `GET` | `/v1/recommendations/products/{id}` | Content-Based Product Recommendations | Internal / Public |
-| `GET` | `/health` | Health Check with Modules & Cache Metrics | Public |
+
+| Method | Path                                | Description                                 | Access             |
+| ------ | ----------------------------------- | ------------------------------------------- | ------------------ |
+| `POST` | `/v1/shopping/chat`                 | AI Shopping Assistant RAG Chat              | Internal / Public  |
+| `POST` | `/v1/seller/generate`               | AI Seller Copilot Marketing & SEO Generator | Internal / Seller  |
+| `POST` | `/v1/rag/parse-intent`              | Natural Language Query Intent Extractor     | Internal           |
+| `POST` | `/v1/embeddings/product/{id}`       | Index Single Product into pgvector          | Internal / Backend |
+| `POST` | `/v1/embeddings/sync`               | Bulk Sync Marketplace Embeddings            | Internal / Admin   |
+| `POST` | `/v1/embeddings/generate`           | Direct 1536-dim Text Vector Generation      | Internal           |
+| `GET`  | `/v1/recommendations/products/{id}` | Content-Based Product Recommendations       | Internal / Public  |
+| `GET`  | `/health`                           | Health Check with Modules & Cache Metrics   | Public             |
 
 ### NestJS Backend Endpoints
-| Method | Path | Description | Access |
-|---|---|---|---|
-| `POST` | `/ai/chat` | Proxies Shopping Chat to AI Service | Public |
-| `POST` | `/ai/product-description` | Proxies Seller Copy Generation | Seller, Admin |
-| `GET` | `/ai/recommendations/:productId` | Content-Based Recommendations Proxy | Public |
-| `GET` | `/products/:idOrSlug/recommendations` | Storefront Product Recommendations | Public |
-| `POST` | `/ai/embeddings/sync` | Trigger Background Vector Re-Indexing | Admin |
+
+| Method | Path                                  | Description                           | Access        |
+| ------ | ------------------------------------- | ------------------------------------- | ------------- |
+| `POST` | `/ai/chat`                            | Proxies Shopping Chat to AI Service   | Public        |
+| `POST` | `/ai/product-description`             | Proxies Seller Copy Generation        | Seller, Admin |
+| `GET`  | `/ai/recommendations/:productId`      | Content-Based Recommendations Proxy   | Public        |
+| `GET`  | `/products/:idOrSlug/recommendations` | Storefront Product Recommendations    | Public        |
+| `POST` | `/ai/embeddings/sync`                 | Trigger Background Vector Re-Indexing | Admin         |
 
 ---
 
@@ -196,7 +212,7 @@ Each recommended item provides human-readable match reasons, such as:
 1. **System Persona Definition**:
    The AI Shopping Assistant is instructed as a friendly, knowledgeable marketplace advisor. The Seller Assistant is instructed as an elite e-commerce conversion copywriter and SEO strategist.
 2. **Grounding & Anti-Hallucination**:
-   - LLMs are explicitly restricted: *"Only recommend products provided in the Context below. Never invent products, brands, or fake prices."*
+   - LLMs are explicitly restricted: _"Only recommend products provided in the Context below. Never invent products, brands, or fake prices."_
    - Context injected contains exact product titles, actual prices, vendor names, and ratings.
 3. **Structured JSON Mode**:
    - For Seller Copilot, schema enforcement is applied via OpenAI `response_format: {"type": "json_object"}` and Gemini structured formatting with regex sanitation fallback.
@@ -270,10 +286,10 @@ User Query / Product Request
 
 ## 9. Architectural Decisions & Trade-Offs
 
-| Decision | Chosen Approach | Rationale | Alternatives Considered |
-|---|---|---|---|
-| **Microservice Framework** | FastAPI (Python) | Native async, high throughput, direct `asyncpg` + `pgvector` codecs, clean Pydantic contracts | Embedded in NestJS (Node.js lacks mature vector/AI ecosystem) |
-| **Vector Database** | PostgreSQL `pgvector` | Zero extra infrastructure, transactional integrity with DokanOS products table, unified backups | Pinecone, Milvus, Qdrant (Added maintenance cost and data sync lag) |
-| **Vector Dimensions** | 1536 dimensions | Standardized with OpenAI `text-embedding-3-small` and Gemini `text-embedding-004` (with dimension projection) | 768 dimensions (Would limit provider interoperability) |
-| **Intent Parsing** | Rule-Based Regex + Semantic Mapping | Zero token cost, sub-millisecond latency, 100% predictable price boundary extraction | Pure LLM intent extraction (Adds 500ms latency and per-query token cost) |
-| **Recommendation Engine** | Content-Based Heuristic | Instant results, works on day one without cold-start problem or extensive historical purchase logs | Collaborative Filtering (Fails for new stores, requires millions of purchase records) |
+| Decision                   | Chosen Approach                     | Rationale                                                                                                     | Alternatives Considered                                                               |
+| -------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| **Microservice Framework** | FastAPI (Python)                    | Native async, high throughput, direct `asyncpg` + `pgvector` codecs, clean Pydantic contracts                 | Embedded in NestJS (Node.js lacks mature vector/AI ecosystem)                         |
+| **Vector Database**        | PostgreSQL `pgvector`               | Zero extra infrastructure, transactional integrity with DokanOS products table, unified backups               | Pinecone, Milvus, Qdrant (Added maintenance cost and data sync lag)                   |
+| **Vector Dimensions**      | 1536 dimensions                     | Standardized with OpenAI `text-embedding-3-small` and Gemini `text-embedding-004` (with dimension projection) | 768 dimensions (Would limit provider interoperability)                                |
+| **Intent Parsing**         | Rule-Based Regex + Semantic Mapping | Zero token cost, sub-millisecond latency, 100% predictable price boundary extraction                          | Pure LLM intent extraction (Adds 500ms latency and per-query token cost)              |
+| **Recommendation Engine**  | Content-Based Heuristic             | Instant results, works on day one without cold-start problem or extensive historical purchase logs            | Collaborative Filtering (Fails for new stores, requires millions of purchase records) |

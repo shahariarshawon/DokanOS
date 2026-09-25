@@ -32,7 +32,9 @@ export class CategoriesController {
   }
 
   @Public()
-  @ApiOperation({ summary: 'Publicly list all active categories in tree hierarchy' })
+  @ApiOperation({
+    summary: 'Publicly list all active categories in tree hierarchy',
+  })
   @Get()
   async findAll() {
     return this.categoriesService.findAll();

@@ -8,8 +8,13 @@ export class UpdateOrderStatusDto {
   @IsNotEmpty()
   status!: OrderStatus;
 
-  @ApiPropertyOptional({ enum: FulfillmentStatus, example: FulfillmentStatus.PROCESSING })
-  @IsEnum(FulfillmentStatus, { message: 'Must provide a valid FulfillmentStatus' })
+  @ApiPropertyOptional({
+    enum: FulfillmentStatus,
+    example: FulfillmentStatus.PROCESSING,
+  })
+  @IsEnum(FulfillmentStatus, {
+    message: 'Must provide a valid FulfillmentStatus',
+  })
   @IsOptional()
   fulfillmentStatus?: FulfillmentStatus;
 
@@ -23,4 +28,3 @@ export class UpdateOrderStatusDto {
   @IsOptional()
   carrier?: string;
 }
-

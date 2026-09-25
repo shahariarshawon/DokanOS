@@ -1,5 +1,13 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString, IsUUID, Matches, MaxLength, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class UpdateCategoryDto {
   @ApiPropertyOptional({ example: 'Mechanical Keyboards' })
@@ -14,7 +22,8 @@ export class UpdateCategoryDto {
   @MinLength(2)
   @MaxLength(120)
   @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
-    message: 'Slug must be URL-safe (lowercase letters, numbers, and hyphens only)',
+    message:
+      'Slug must be URL-safe (lowercase letters, numbers, and hyphens only)',
   })
   slug?: string;
 
@@ -23,7 +32,9 @@ export class UpdateCategoryDto {
   @IsOptional()
   description?: string;
 
-  @ApiPropertyOptional({ example: 'https://cdn.dokanos.com/icons/keyboard-v2.svg' })
+  @ApiPropertyOptional({
+    example: 'https://cdn.dokanos.com/icons/keyboard-v2.svg',
+  })
   @IsString()
   @IsOptional()
   iconUrl?: string;

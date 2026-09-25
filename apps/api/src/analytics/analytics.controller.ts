@@ -57,7 +57,10 @@ export class AnalyticsController {
     description:
       'Provides marketplace GMV, platform commission revenues, transaction gateway breakdowns, user growth rates, and top performing vendor stores.',
   })
-  @ApiResponse({ status: 200, description: 'Admin platform analytics dashboard data' })
+  @ApiResponse({
+    status: 200,
+    description: 'Admin platform analytics dashboard data',
+  })
   @Get('admin/dashboard')
   async getAdminDashboard(@Query() query: AdminAnalyticsQueryDto) {
     return this.analyticsService.getAdminDashboard(query);
@@ -77,7 +80,8 @@ export class AnalyticsController {
     @Req() req: Request,
     @CurrentUser('id') userId?: string,
   ) {
-    const ip = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress;
+    const ip =
+      (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'];
     return this.analyticsService.trackEvent(dto, userId, ip, userAgent);
   }

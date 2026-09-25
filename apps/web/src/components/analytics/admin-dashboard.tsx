@@ -4,13 +4,10 @@ import React from 'react';
 import {
   Users,
   Store,
-  CreditCard,
   Building2,
   TrendingUp,
-  ShieldCheck,
   ArrowUpRight,
   ArrowDownRight,
-  Sparkles,
   Award,
   Star,
 } from 'lucide-react';
@@ -43,7 +40,9 @@ export function AdminDashboardView({ data }: AdminDashboardViewProps) {
         {/* Card 1: Platform GMV */}
         <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-5 shadow-lg backdrop-blur relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Platform GMV</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              Platform GMV
+            </span>
             <div className="p-2 bg-blue-500/10 text-blue-400 rounded-lg">
               <Building2 className="w-5 h-5" />
             </div>
@@ -60,7 +59,9 @@ export function AdminDashboardView({ data }: AdminDashboardViewProps) {
         {/* Card 2: Platform Revenue */}
         <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-5 shadow-lg backdrop-blur relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Platform Revenue</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              Platform Revenue
+            </span>
             <div className="p-2 bg-amber-500/10 text-amber-400 rounded-lg">
               <TrendingUp className="w-5 h-5" />
             </div>
@@ -79,7 +80,9 @@ export function AdminDashboardView({ data }: AdminDashboardViewProps) {
         {/* Card 3: Total Users & Breakdown */}
         <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-5 shadow-lg backdrop-blur relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Total Users</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              Total Users
+            </span>
             <div className="p-2 bg-purple-500/10 text-purple-400 rounded-lg">
               <Users className="w-5 h-5" />
             </div>
@@ -91,15 +94,19 @@ export function AdminDashboardView({ data }: AdminDashboardViewProps) {
             <GrowthBadge pct={growth.userGrowthPct} />
           </div>
           <div className="flex items-center gap-2 mt-2 text-[11px] text-zinc-400">
-            <span className="text-zinc-300 font-mono">{metrics.usersBreakdown.customers}</span> shoppers •{' '}
-            <span className="text-zinc-300 font-mono">{metrics.usersBreakdown.sellers}</span> sellers
+            <span className="text-zinc-300 font-mono">{metrics.usersBreakdown.customers}</span>{' '}
+            shoppers •{' '}
+            <span className="text-zinc-300 font-mono">{metrics.usersBreakdown.sellers}</span>{' '}
+            sellers
           </div>
         </div>
 
         {/* Card 4: Active Sellers & Transactions */}
         <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-5 shadow-lg backdrop-blur relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Active Sellers</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              Active Sellers
+            </span>
             <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg">
               <Store className="w-5 h-5" />
             </div>
@@ -123,14 +130,17 @@ export function AdminDashboardView({ data }: AdminDashboardViewProps) {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
             <div>
               <h3 className="text-base font-semibold text-white">Platform GMV & Net Revenue</h3>
-              <p className="text-xs text-zinc-400">Gross marketplace transaction volume vs DokanOS commission</p>
+              <p className="text-xs text-zinc-400">
+                Gross marketplace transaction volume vs DokanOS commission
+              </p>
             </div>
             <div className="flex items-center gap-4 text-xs">
               <span className="flex items-center gap-1.5 text-zinc-300">
                 <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" /> Gross GMV
               </span>
               <span className="flex items-center gap-1.5 text-zinc-300">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" /> Platform Commission
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" /> Platform
+                Commission
               </span>
             </div>
           </div>
@@ -161,10 +171,18 @@ export function AdminDashboardView({ data }: AdminDashboardViewProps) {
           </div>
           <DistributionPie data={transactionData} />
           <div className="border-t border-zinc-800 pt-3 text-xs grid grid-cols-2 gap-2 text-zinc-400">
-            <span className="text-emerald-400 font-mono">Paid: {metrics.transactionsBreakdown.completed}</span>
-            <span className="text-amber-400 font-mono">Pending: {metrics.transactionsBreakdown.pending}</span>
-            <span className="text-rose-400 font-mono">Failed: {metrics.transactionsBreakdown.failed}</span>
-            <span className="text-purple-400 font-mono">Refunded: {metrics.transactionsBreakdown.refunded}</span>
+            <span className="text-emerald-400 font-mono">
+              Paid: {metrics.transactionsBreakdown.completed}
+            </span>
+            <span className="text-amber-400 font-mono">
+              Pending: {metrics.transactionsBreakdown.pending}
+            </span>
+            <span className="text-rose-400 font-mono">
+              Failed: {metrics.transactionsBreakdown.failed}
+            </span>
+            <span className="text-purple-400 font-mono">
+              Refunded: {metrics.transactionsBreakdown.refunded}
+            </span>
           </div>
         </div>
 
@@ -172,8 +190,12 @@ export function AdminDashboardView({ data }: AdminDashboardViewProps) {
         <div className="lg:col-span-2 bg-zinc-900/80 border border-zinc-800 rounded-xl p-6 shadow-lg overflow-hidden">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-base font-semibold text-white">Top Marketplace Merchant Stores</h3>
-              <p className="text-xs text-zinc-400">Ranked by Gross Merchandise Value and platform revenue</p>
+              <h3 className="text-base font-semibold text-white">
+                Top Marketplace Merchant Stores
+              </h3>
+              <p className="text-xs text-zinc-400">
+                Ranked by Gross Merchandise Value and platform revenue
+              </p>
             </div>
             <Award className="w-5 h-5 text-amber-400" />
           </div>
@@ -197,7 +219,9 @@ export function AdminDashboardView({ data }: AdminDashboardViewProps) {
                         <span className="w-5 h-5 rounded-full bg-zinc-800 border border-zinc-700/80 text-zinc-300 font-bold text-[10px] flex items-center justify-center shrink-0">
                           {idx + 1}
                         </span>
-                        <span className="font-semibold text-white truncate max-w-[180px]">{s.name}</span>
+                        <span className="font-semibold text-white truncate max-w-[180px]">
+                          {s.name}
+                        </span>
                       </div>
                     </td>
                     <td className="py-3 text-zinc-400">{s.sellerBusinessName}</td>

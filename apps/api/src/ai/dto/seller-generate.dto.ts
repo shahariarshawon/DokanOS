@@ -1,13 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ArrayMinSize, IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class SellerGenerateDto {
-  @ApiPropertyOptional({ example: 'Keychron Q1 Pro Wireless Mechanical Keyboard' })
+  @ApiPropertyOptional({
+    example: 'Keychron Q1 Pro Wireless Mechanical Keyboard',
+  })
   @IsString()
   @IsOptional()
   productName?: string;
 
-  @ApiPropertyOptional({ example: 'Keychron Q1 Pro Wireless Mechanical Keyboard' })
+  @ApiPropertyOptional({
+    example: 'Keychron Q1 Pro Wireless Mechanical Keyboard',
+  })
   @IsString()
   @IsOptional()
   title?: string;

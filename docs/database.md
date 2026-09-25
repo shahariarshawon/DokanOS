@@ -9,14 +9,16 @@
 
 ## 1. Executive Overview & Architecture Principles
 
-The DokanOS persistence layer is architected as an **ACID-compliant, relational data store with integrated vector search**. 
+The DokanOS persistence layer is architected as an **ACID-compliant, relational data store with integrated vector search**.
 
 Multi-vendor commerce platforms introduce unique transactional challenges:
+
 1. **Multi-Store Basket Isolation & Payouts:** A single customer checkout can contain line items from different sellers, each requiring independent fulfillment tracking, commission deduction, and payment settlement.
 2. **Immutable Audit Trails:** Product prices, titles, and SKUs change over time; order history must remain mathematically immutable to preserve invoice integrity and tax compliance.
 3. **Unified Relational & Vector Semantics:** Instead of routing product searches to an external, out-of-sync vector database, vector embeddings live inside PostgreSQL via `pgvector`, allowing atomic single-query hybrid search (relational SQL filters + cosine vector distance).
 
 ### Core Architectural Decisions
+
 - **UUID Primary Keys (v4/v7):** Prevents sequential enumeration attacks on sensitive marketplace entities (orders, invoices, user accounts) and simplifies distributed database replication.
 - **Strict Referential Integrity with Declarative Cascades:** Explicit `ON DELETE CASCADE` or `ON DELETE RESTRICT` guarantees no orphaned records while preventing accidental deletion of financial records.
 - **Monetary Precision via `Decimal(12, 2)`:** Floats are strictly prohibited for prices, commissions, and balances to eliminate floating-point arithmetic errors.
@@ -199,6 +201,7 @@ erDiagram
 ## 3. Detailed Entity Specifications
 
 ### 3.1. `User`
+
 - **Purpose:** Primary identity table for authentication, account management, and role-based permissions across customers, sellers, and administrators.
 - **Fields:**
   - `id`: `UUID` (PK, default `gen_random_uuid()`)
@@ -228,6 +231,7 @@ erDiagram
 ---
 
 ### 3.2. `SellerProfile`
+
 - **Purpose:** Stores legal, KYC (Know Your Customer), tax, and banking details of a verified marketplace merchant.
 - **Fields:**
   - `id`: `UUID` (PK)
@@ -253,6 +257,7 @@ erDiagram
 ---
 
 ### 3.3. `Store`
+
 - **Purpose:** Represents the customer-facing storefront/vendor profile. A seller profile can manage one or more stores.
 - **Fields:**
   - `id`: `UUID` (PK)
@@ -280,6 +285,7 @@ erDiagram
 ---
 
 ### 3.4. `Category`
+
 - **Purpose:** Self-referencing hierarchical taxonomy for marketplace catalog classification.
 - **Fields:**
   - `id`: `UUID` (PK)
@@ -303,6 +309,7 @@ erDiagram
 ---
 
 ### 3.5. `Product`
+
 - **Purpose:** Primary marketplace merchandise listing with pricing, inventory tracking, and dynamic metadata.
 - **Fields:**
   - `id`: `UUID` (PK)
@@ -341,6 +348,7 @@ erDiagram
 ---
 
 ### 3.6. `ProductImage`
+
 - **Purpose:** Ordered visual gallery assets for products stored on Cloudflare R2.
 - **Fields:**
   - `id`: `UUID` (PK)
@@ -358,6 +366,7 @@ erDiagram
 ---
 
 ### 3.7. `Cart`
+
 - **Purpose:** Active shopping basket for registered users or anonymous guest visitors.
 - **Fields:**
   - `id`: `UUID` (PK)
@@ -375,6 +384,7 @@ erDiagram
 ---
 
 ### 3.8. `CartItem`
+
 - **Purpose:** Individual product entry inside a user's shopping basket.
 - **Fields:**
   - `id`: `UUID` (PK)
@@ -395,6 +405,7 @@ erDiagram
 ---
 
 ### 3.9. `Order`
+
 - **Purpose:** Master financial document and fulfillment state machine for a customer purchase.
 - **Fields:**
   - `id`: `UUID` (PK)
@@ -425,6 +436,7 @@ erDiagram
 ---
 
 ### 3.10. `OrderItem`
+
 - **Purpose:** Immutable line items of an order. Crucially, it snapshots product details at purchase time and attributes revenue to specific stores.
 - **Fields:**
   - `id`: `UUID` (PK)
@@ -456,6 +468,7 @@ erDiagram
 ---
 
 ### 3.11. `Payment`
+
 - **Purpose:** Ledger of gateway transaction attempts, confirmations, and refund events.
 - **Fields:**
   - `id`: `UUID` (PK)
@@ -479,6 +492,7 @@ erDiagram
 ---
 
 ### 3.12. `Conversation`
+
 - **Purpose:** Real-time messaging thread established between a customer and a specific vendor store.
 - **Fields:**
   - `id`: `UUID` (PK)
@@ -500,6 +514,7 @@ erDiagram
 ---
 
 ### 3.13. `Message`
+
 - **Purpose:** Chat messages exchanged in real time within a conversation.
 - **Fields:**
   - `id`: `UUID` (PK)
@@ -519,6 +534,7 @@ erDiagram
 ---
 
 ### 3.14. `Notification`
+
 - **Purpose:** In-app and push notification alerts for order milestones, chat alerts, and inventory warnings.
 - **Fields:**
   - `id`: `UUID` (PK)
@@ -538,6 +554,7 @@ erDiagram
 ---
 
 ### 3.15. `AIConversation`
+
 - **Purpose:** Stateful conversational history for AI interactions (Customer shopping concierge or Seller product copilot).
 - **Fields:**
   - `id`: `UUID` (PK)
@@ -557,6 +574,7 @@ erDiagram
 ---
 
 ### 3.16. `Embedding`
+
 - **Purpose:** High-dimensional vector embeddings for AI semantic search, similarity scoring, and RAG retrieval.
 - **Fields:**
   - `id`: `UUID` (PK)
@@ -1026,8 +1044,9 @@ model Embedding {
 Indexing is calibrated to balance sub-millisecond query response times against write amplification.
 
 ### 5.1. B-Tree Indexes (Relational Lookups & Foreign Keys)
+
 - **Foreign Key Indexing:** Every foreign key column (`userId`, `storeId`, `categoryId`, `orderId`) has an explicit index to eliminate sequential scans during `JOIN` operations and cascading foreign key checks.
-- **Compound State Indexes:** 
+- **Compound State Indexes:**
   - `products([storeId, status])`: Optimizes the Seller Dashboard query (`WHERE storeId = $1 AND status = 'ACTIVE'`).
   - `products([categoryId, status])`: Optimizes customer category catalog browsing.
   - `orders([userId, status])`: Optimizes customer order history tab filtering.
@@ -1035,6 +1054,7 @@ Indexing is calibrated to balance sub-millisecond query response times against w
   - `conversations([storeId, lastMessageAt])`: Powers real-time vendor chat inbox sorted by recency.
 
 ### 5.2. GIN Indexes (Generalized Inverted Indexes for JSONB & Full-Text Search)
+
 PostgreSQL's **GIN** indexes allow deep indexing of semi-structured document fields:
 
 ```sql
@@ -1048,6 +1068,7 @@ CREATE INDEX product_fts_idx ON "products" USING gin (
 ```
 
 ### 5.3. HNSW Index for `pgvector` (Vector Cosine Similarity)
+
 The `embeddings` table utilizes a **Hierarchical Navigable Small World (HNSW)** index rather than IVFFlat. HNSW provides faster query throughput ($O(\log N)$) and does not require periodic index rebuilding as the catalog grows.
 
 ```sql
@@ -1055,7 +1076,7 @@ The `embeddings` table utilizes a **Hierarchical Navigable Small World (HNSW)** 
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- HNSW Cosine Distance Index (m = 16, ef_construction = 64)
-CREATE INDEX embedding_hnsw_idx ON "embeddings" 
+CREATE INDEX embedding_hnsw_idx ON "embeddings"
 USING hnsw ("embedding" vector_cosine_ops)
 WITH (m = 16, ef_construction = 64);
 ```
@@ -1065,25 +1086,27 @@ WITH (m = 16, ef_construction = 64);
 ## 6. Database Normalization & Strategic Denormalization
 
 ### Normalization (3NF) Applied To:
+
 1. **Catalog & Taxonomy:** Categories, stores, and products follow strict Third Normal Form. Store details are never duplicated into the `Product` table; category hierarchy resolves through normalized self-references.
 2. **Identity & Authentication:** User credentials and seller business profiles are isolated into distinct tables (`users` vs. `seller_profiles`) to prevent sparse null columns on customer accounts.
 3. **Conversations & Messages:** Thread metadata (`conversations`) is normalized from individual chat payloads (`messages`).
 
 ### Strategic Denormalization Decisions (For Financial & Audit Integrity):
 
-| Denormalized Field | Target Table | Original Source | Architectural Rationale |
-| :--- | :--- | :--- | :--- |
-| `productTitle`, `productSku` | `order_items` | `products` | **Preserves Legal Invoice Integrity.** If a seller renames a product from *"iPhone 15"* to *"Refurbished iPhone 15"*, past orders must permanently show what the customer originally purchased. |
-| `unitPrice` | `order_items` | `products` | **Price Volatility Protection.** Product prices fluctuate constantly. Historical order item prices must remain frozen at the exact checkout snapshot. |
-| `commissionRate`, `commissionAmount`, `vendorPayoutAmount` | `order_items` | Calculated | **Permanent Multi-Vendor Audit Ledger.** Marketplace commissions must be locked at the moment of payment to protect both the platform and vendor during financial reconciliation. |
-| `rating`, `reviewCount` | `products`, `stores` | Aggregated from Reviews | **Read-Path Acceleration.** Querying thousands of products on the storefront would crawl if an `AVG(rating)` subquery were computed on every page load. These are updated asynchronously via database triggers or background jobs. |
-| `lastMessageAt` | `conversations` | `messages.createdAt` | **Inbox Sorting Speed.** Enables sorting thousands of chat threads via an indexed timestamp without scanning through millions of message records. |
+| Denormalized Field                                         | Target Table         | Original Source         | Architectural Rationale                                                                                                                                                                                                            |
+| :--------------------------------------------------------- | :------------------- | :---------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `productTitle`, `productSku`                               | `order_items`        | `products`              | **Preserves Legal Invoice Integrity.** If a seller renames a product from _"iPhone 15"_ to _"Refurbished iPhone 15"_, past orders must permanently show what the customer originally purchased.                                    |
+| `unitPrice`                                                | `order_items`        | `products`              | **Price Volatility Protection.** Product prices fluctuate constantly. Historical order item prices must remain frozen at the exact checkout snapshot.                                                                              |
+| `commissionRate`, `commissionAmount`, `vendorPayoutAmount` | `order_items`        | Calculated              | **Permanent Multi-Vendor Audit Ledger.** Marketplace commissions must be locked at the moment of payment to protect both the platform and vendor during financial reconciliation.                                                  |
+| `rating`, `reviewCount`                                    | `products`, `stores` | Aggregated from Reviews | **Read-Path Acceleration.** Querying thousands of products on the storefront would crawl if an `AVG(rating)` subquery were computed on every page load. These are updated asynchronously via database triggers or background jobs. |
+| `lastMessageAt`                                            | `conversations`      | `messages.createdAt`    | **Inbox Sorting Speed.** Enables sorting thousands of chat threads via an indexed timestamp without scanning through millions of message records.                                                                                  |
 
 ---
 
 ## 7. Migration & Seed Lifecycle
 
 ### Standard Migration Commands
+
 ```bash
 # Generate a new migration after schema modification
 pnpm --filter api prisma migrate dev --name <migration_name>
@@ -1099,9 +1122,11 @@ pnpm --filter api prisma studio
 ```
 
 ### Initializing `pgvector` in PostgreSQL Migrations
+
 Prisma handles relational types out of the box, but the native PostgreSQL `vector` extension and custom HNSW index require an initial SQL migration script.
 
 **Migration Step (`prisma/migrations/0_init_vector/migration.sql`):**
+
 ```sql
 -- 1. Enable pgvector extension
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -1109,8 +1134,8 @@ CREATE EXTENSION IF NOT EXISTS vector;
 -- 2. Execute Prisma generated DDL...
 
 -- 3. Create HNSW vector index
-CREATE INDEX IF NOT EXISTS embedding_hnsw_idx 
-ON "embeddings" 
+CREATE INDEX IF NOT EXISTS embedding_hnsw_idx
+ON "embeddings"
 USING hnsw ("embedding" vector_cosine_ops)
 WITH (m = 16, ef_construction = 64);
 ```

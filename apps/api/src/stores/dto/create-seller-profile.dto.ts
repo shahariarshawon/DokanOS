@@ -2,7 +2,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateSellerProfileDto {
-  @ApiProperty({ example: 'Rahman Tech Dynamics Ltd.', description: 'Legal business name' })
+  @ApiProperty({
+    example: 'Rahman Tech Dynamics Ltd.',
+    description: 'Legal business name',
+  })
   @IsString()
   @IsNotEmpty({ message: 'Business name is required' })
   businessName!: string;

@@ -11,7 +11,8 @@ export class CreateConversationDto {
   storeId!: string;
 
   @ApiPropertyOptional({
-    description: 'Optional Order ID if the inquiry is regarding a specific purchase',
+    description:
+      'Optional Order ID if the inquiry is regarding a specific purchase',
     example: 'b1ffcd88-8b1a-4de7-aa5c-5aa8ac270b22',
   })
   @IsUUID()
@@ -19,7 +20,8 @@ export class CreateConversationDto {
   orderId?: string;
 
   @ApiPropertyOptional({
-    description: 'Optional first message to automatically send upon thread creation',
+    description:
+      'Optional first message to automatically send upon thread creation',
     example: 'Hello! Is this item available in size L?',
   })
   @IsString()

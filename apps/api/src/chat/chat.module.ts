@@ -7,11 +7,7 @@ import { ChatGateway } from './chat.gateway.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 
 @Module({
-  imports: [
-    JwtModule.register({}),
-    ConfigModule,
-    NotificationsModule,
-  ],
+  imports: [JwtModule.register({}), ConfigModule, NotificationsModule],
   controllers: [ChatController],
   providers: [ChatService, ChatGateway],
   exports: [ChatService, ChatGateway],

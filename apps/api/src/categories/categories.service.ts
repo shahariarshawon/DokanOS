@@ -29,7 +29,9 @@ export class CategoriesService {
         where: { id: dto.parentId },
       });
       if (!parent) {
-        throw new NotFoundException(`Parent category with ID ${dto.parentId} not found`);
+        throw new NotFoundException(
+          `Parent category with ID ${dto.parentId} not found`,
+        );
       }
       level = parent.level + 1;
     }
@@ -65,8 +67,15 @@ export class CategoriesService {
     });
   }
 
-  async findOne(idOrSlug: string): Promise<Category & { children: Category[]; _count: { products: number } }> {
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
+  async findOne(
+    idOrSlug: string,
+  ): Promise<
+    Category & { children: Category[]; _count: { products: number } }
+  > {
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        idOrSlug,
+      );
 
     const category = await this.prisma.category.findFirst({
       where: isUuid ? { id: idOrSlug } : { slug: idOrSlug.toLowerCase() },
@@ -96,7 +105,9 @@ export class CategoriesService {
         where: { slug: dto.slug.toLowerCase().trim() },
       });
       if (existing && existing.id !== id) {
-        throw new ConflictException(`Category slug '${dto.slug}' already in use`);
+        throw new ConflictException(
+          `Category slug '${dto.slug}' already in use`,
+        );
       }
     }
 

@@ -2,14 +2,11 @@
 
 ## AI-Powered Commerce Operating System
 
-
 DokanOS is a modern AI-powered multi-vendor marketplace platform designed to help customers discover products intelligently and enable sellers to manage their businesses using automation and artificial intelligence.
-
 
 ## Vision
 
 The goal of DokanOS is to build a scalable commerce ecosystem where traditional marketplace operations are enhanced with AI-powered search, recommendations, automation, and intelligent seller tools.
-
 
 # Core Concept
 
@@ -22,9 +19,7 @@ DokanOS combines:
 - Vector Search
 - Automation
 
-
 # Main Users
-
 
 ## Customer
 
@@ -38,7 +33,6 @@ Customers can:
 - Purchase products
 - Review products
 
-
 ## Seller
 
 Sellers can:
@@ -50,7 +44,6 @@ Sellers can:
 - Generate product content using AI
 - Use AI tools to improve sales
 
-
 ## Admin
 
 Admins can:
@@ -61,10 +54,7 @@ Admins can:
 - Handle reports
 - Manage payments
 
-
-
 # Technology Stack
-
 
 ## Frontend
 
@@ -74,7 +64,6 @@ Admins can:
 - React Query
 - Zustand
 
-
 ## Backend
 
 - NestJS
@@ -82,7 +71,6 @@ Admins can:
 - PostgreSQL
 - Prisma ORM
 - Redis
-
 
 ## AI System
 
@@ -94,22 +82,18 @@ Separate AI service:
 - OpenAI/Gemini API
 - pgvector
 
-
 ## Storage
 
 - Cloudflare R2
-
 
 ## Realtime
 
 - Socket.io
 
-
 ## Payment
 
 - Stripe
 - SSLCommerz
-
 
 ## Infrastructure
 
@@ -117,10 +101,7 @@ Separate AI service:
 - GitHub Actions
 - VPS Deployment
 
-
-
 # System Architecture
-
 
 DokanOS follows a modular monolithic architecture with separated AI services.
 
@@ -148,11 +129,7 @@ DokanOS follows a modular monolithic architecture with separated AI services.
 
       LLM + Vector Search
 
-   
-
-
 # AI Features
-
 
 ## AI Shopping Assistant
 
@@ -162,15 +139,12 @@ Example:
 
 "I need a laptop for programming under $800"
 
-
 The system:
 
 1. Understands user intent
 2. Searches product embeddings
 3. Retrieves relevant products
 4. Generates intelligent responses
-
-
 
 ## AI Seller Assistant
 
@@ -181,8 +155,6 @@ Automatically generates:
 - Categories
 - Product tags
 
-
-
 ## Product Intelligence
 
 AI analyzes product information and images to extract:
@@ -192,10 +164,7 @@ AI analyzes product information and images to extract:
 - Features
 - Similar products
 
-
-
 # Development Philosophy
-
 
 DokanOS is not designed as an over-engineered enterprise system.
 
@@ -208,25 +177,19 @@ The goal is to demonstrate production-level engineering practices:
 - Testing
 - Deployment automation
 
-
-
 # Project Architecture Principles
-
 
 ## Backend
 
 Feature-based modular architecture.
 
-
 ## Database
 
 Relational modeling using PostgreSQL.
 
-
 ## AI
 
 Independent AI service for flexibility.
-
 
 ## Security
 
@@ -237,10 +200,7 @@ Implementation includes:
 - Validation
 - Secure payments
 
-
-
 # Development Roadmap
-
 
 ## Phase 1
 
@@ -249,7 +209,6 @@ Foundation
 - Project setup
 - Authentication
 - Database
-
 
 ## Phase 2
 
@@ -260,7 +219,6 @@ Marketplace Core
 - Cart
 - Orders
 
-
 ## Phase 3
 
 Commerce Features
@@ -269,7 +227,6 @@ Commerce Features
 - Subscription
 - Notifications
 
-
 ## Phase 4
 
 AI Integration
@@ -277,7 +234,6 @@ AI Integration
 - RAG chatbot
 - AI seller assistant
 - Recommendation system
-
 
 ## Phase 5
 
@@ -288,14 +244,10 @@ Production
 - Deployment
 - CI/CD
 
-
-
 # Current Status
 
 🚧 Under active development
 
-
 # Author
 
 Al Shahariar Arafat Shawon
-    

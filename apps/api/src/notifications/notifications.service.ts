@@ -53,7 +53,9 @@ export class NotificationsService {
       this.gateway.emitNotificationToUser(dto.userId, notification);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Failed to broadcast notification via WebSocket: ${message}`);
+      this.logger.warn(
+        `Failed to broadcast notification via WebSocket: ${message}`,
+      );
     }
 
     return notification;
@@ -113,13 +115,18 @@ export class NotificationsService {
   /**
    * Mark a single notification as read.
    */
-  async markAsRead(userId: string, notificationId: string): Promise<Notification> {
+  async markAsRead(
+    userId: string,
+    notificationId: string,
+  ): Promise<Notification> {
     const notification = await this.prisma.notification.findFirst({
       where: { id: notificationId, userId },
     });
 
     if (!notification) {
-      throw new NotFoundException(`Notification with ID ${notificationId} not found`);
+      throw new NotFoundException(
+        `Notification with ID ${notificationId} not found`,
+      );
     }
 
     return this.prisma.notification.update({
@@ -149,10 +156,17 @@ export class NotificationsService {
   /**
    * Delete a notification.
    */
-  async deleteNotification(userId: string, notificationId: string): Promise<{ success: boolean }> {
+  async deleteNotification(
+    userId: string,
+    notificationId: string,
+  ): Promise<{ success: boolean }> {
     const notification = await this.prisma.notification.findFirst({
       where: { id: notificationId, userId },
     });
+
+    if (!notification) {
+      throw new NotFoundException('Notification not found');
+    }
 
     await this.prisma.notification.delete({
       where: { id: notificationId },
@@ -182,7 +196,11 @@ export class NotificationsService {
       type: NotificationType.ORDER_STATUS,
       title: `Order #${data.orderNumber} Status: ${data.status}`,
       body: `Your order #${data.orderNumber} is now ${data.status.toLowerCase()}. Total: $${data.totalAmount}`,
-      payload: { orderId: data.orderId, orderNumber: data.orderNumber, status: data.status },
+      payload: {
+        orderId: data.orderId,
+        orderNumber: data.orderNumber,
+        status: data.status,
+      },
     });
   }
 
@@ -252,8 +270,10 @@ export class NotificationsService {
       type: NotificationType.STOCK_LOW,
       title: `Low Stock Alert: ${data.productTitle}`,
       body: `Product '${data.productTitle}' has only ${data.remainingStock} units left in stock.`,
-      payload: { productId: data.productId, remainingStock: data.remainingStock },
+      payload: {
+        productId: data.productId,
+        remainingStock: data.remainingStock,
+      },
     });
   }
 }
-

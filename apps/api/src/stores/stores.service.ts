@@ -50,7 +50,9 @@ export class StoresService {
     return profile;
   }
 
-  async getSellerProfile(userId: string): Promise<SellerProfile & { stores: Store[] }> {
+  async getSellerProfile(
+    userId: string,
+  ): Promise<SellerProfile & { stores: Store[] }> {
     const profile = await this.prisma.sellerProfile.findUnique({
       where: { userId },
       include: { stores: true },
@@ -83,7 +85,9 @@ export class StoresService {
     });
 
     if (existing) {
-      throw new ConflictException(`Store slug '${normalizedSlug}' is already taken`);
+      throw new ConflictException(
+        `Store slug '${normalizedSlug}' is already taken`,
+      );
     }
 
     return this.prisma.store.create({
@@ -114,7 +118,9 @@ export class StoresService {
     });
   }
 
-  async getStoreBySlug(slug: string): Promise<Store & { _count: { products: number } }> {
+  async getStoreBySlug(
+    slug: string,
+  ): Promise<Store & { _count: { products: number } }> {
     const store = await this.prisma.store.findUnique({
       where: { slug: slug.toLowerCase() },
       include: {
@@ -131,7 +137,11 @@ export class StoresService {
     return store;
   }
 
-  async updateStore(userId: string, storeId: string, dto: UpdateStoreDto): Promise<Store> {
+  async updateStore(
+    userId: string,
+    storeId: string,
+    dto: UpdateStoreDto,
+  ): Promise<Store> {
     const store = await this.prisma.store.findUnique({
       where: { id: storeId },
       include: { sellerProfile: true },
@@ -144,7 +154,9 @@ export class StoresService {
     // Check user ownership
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (store.sellerProfile.userId !== userId && user?.role !== 'ADMIN') {
-      throw new ForbiddenException('You do not have permission to modify this store');
+      throw new ForbiddenException(
+        'You do not have permission to modify this store',
+      );
     }
 
     return this.prisma.store.update({

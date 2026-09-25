@@ -1,6 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { AnalyticsEventType } from '@prisma/client';
-import { IsEnum, IsNotEmpty, IsObject, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 
 export class TrackEventDto {
   @ApiProperty({
@@ -28,7 +35,11 @@ export class TrackEventDto {
   sessionId?: string;
 
   @ApiPropertyOptional({
-    example: { referrer: 'https://google.com', screen: 'desktop', price: 99.99 },
+    example: {
+      referrer: 'https://google.com',
+      screen: 'desktop',
+      price: 99.99,
+    },
   })
   @IsObject()
   @IsOptional()

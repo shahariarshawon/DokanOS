@@ -30,7 +30,12 @@ export class RedisIoAdapter extends IoAdapter {
 
       const pubClient: Redis = redisUrl
         ? new Redis(redisUrl, options)
-        : new Redis({ host, port, password: password || undefined, ...options });
+        : new Redis({
+            host,
+            port,
+            password: password || undefined,
+            ...options,
+          });
 
       const subClient: Redis = pubClient.duplicate();
 
@@ -46,7 +51,9 @@ export class RedisIoAdapter extends IoAdapter {
       ]);
 
       this.adapterConstructor = createAdapter(pubClient, subClient);
-      this.adapterLogger.log('Redis Socket.io Adapter initialized across pub/sub channels');
+      this.adapterLogger.log(
+        'Redis Socket.io Adapter initialized across pub/sub channels',
+      );
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       this.adapterLogger.warn(
@@ -57,7 +64,7 @@ export class RedisIoAdapter extends IoAdapter {
 
   override createIOServer(port: number, options?: ServerOptions): any {
     const serverOptions = {
-      ...(options || {}),
+      ...options,
       cors: {
         origin: '*', // In production, can be constrained to frontend origins
         methods: ['GET', 'POST'],
@@ -72,7 +79,9 @@ export class RedisIoAdapter extends IoAdapter {
 
     if (this.adapterConstructor) {
       server.adapter(this.adapterConstructor);
-      this.adapterLogger.log('Bound Redis adapter to Socket.io server instance');
+      this.adapterLogger.log(
+        'Bound Redis adapter to Socket.io server instance',
+      );
     }
 
     return server;

@@ -34,7 +34,9 @@ export class ProductsService {
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (store.sellerProfile.userId !== userId && user?.role !== 'ADMIN') {
-      throw new ForbiddenException('You do not have permission to add products to this store');
+      throw new ForbiddenException(
+        'You do not have permission to add products to this store',
+      );
     }
 
     // 2. Verify category exists
@@ -42,7 +44,9 @@ export class ProductsService {
       where: { id: dto.categoryId },
     });
     if (!category) {
-      throw new NotFoundException(`Category with ID '${dto.categoryId}' not found`);
+      throw new NotFoundException(
+        `Category with ID '${dto.categoryId}' not found`,
+      );
     }
 
     // 3. Generate unique slug if not explicitly passed
@@ -52,7 +56,9 @@ export class ProductsService {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
 
-    const existingSlug = await this.prisma.product.findUnique({ where: { slug } });
+    const existingSlug = await this.prisma.product.findUnique({
+      where: { slug },
+    });
     if (existingSlug) {
       const suffix = Math.random().toString(36).substring(2, 7);
       slug = `${slug}-${suffix}`;
@@ -69,7 +75,9 @@ export class ProductsService {
         },
       });
       if (existingSku) {
-        throw new ConflictException(`SKU '${dto.sku}' already exists in this store`);
+        throw new ConflictException(
+          `SKU '${dto.sku}' already exists in this store`,
+        );
       }
     }
 
@@ -84,23 +92,26 @@ export class ProductsService {
         sku: dto.sku,
         barcode: dto.barcode,
         price: new Prisma.Decimal(dto.price),
-        compareAtPrice: dto.compareAtPrice ? new Prisma.Decimal(dto.compareAtPrice) : null,
+        compareAtPrice: dto.compareAtPrice
+          ? new Prisma.Decimal(dto.compareAtPrice)
+          : null,
         costPrice: dto.costPrice ? new Prisma.Decimal(dto.costPrice) : null,
         stockQuantity: dto.stockQuantity ?? 0,
         lowStockThreshold: dto.lowStockThreshold ?? 5,
         status: dto.status ?? 'ACTIVE',
         attributes: (dto.attributes ?? {}) as Prisma.InputJsonValue,
         isFeatured: dto.isFeatured ?? false,
-        images: dto.images && dto.images.length > 0
-          ? {
-              create: dto.images.map((img, index) => ({
-                url: img.url,
-                altText: img.altText ?? dto.title,
-                sortOrder: img.sortOrder ?? index,
-                isPrimary: img.isPrimary ?? index === 0,
-              })),
-            }
-          : undefined,
+        images:
+          dto.images && dto.images.length > 0
+            ? {
+                create: dto.images.map((img, index) => ({
+                  url: img.url,
+                  altText: img.altText ?? dto.title,
+                  sortOrder: img.sortOrder ?? index,
+                  isPrimary: img.isPrimary ?? index === 0,
+                })),
+              }
+            : undefined,
       },
       include: {
         images: true,
@@ -111,7 +122,9 @@ export class ProductsService {
 
     // Asynchronously generate vector embedding in pgvector pipeline
     this.aiService.indexProductEmbedding(product.id).catch((err) => {
-      this.logger.warn(`Failed to auto-index embedding for product ${product.id}: ${err.message}`);
+      this.logger.warn(
+        `Failed to auto-index embedding for product ${product.id}: ${err.message}`,
+      );
     });
 
     return product;
@@ -207,7 +220,10 @@ export class ProductsService {
   }
 
   async findOne(idOrSlug: string): Promise<Product> {
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        idOrSlug,
+      );
 
     const product = await this.prisma.product.findFirst({
       where: isUuid ? { id: idOrSlug } : { slug: idOrSlug.toLowerCase() },
@@ -216,7 +232,13 @@ export class ProductsService {
           orderBy: { sortOrder: 'asc' },
         },
         store: {
-          select: { id: true, name: true, slug: true, rating: true, logoUrl: true },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            rating: true,
+            logoUrl: true,
+          },
         },
         category: {
           select: { id: true, name: true, slug: true },
@@ -231,7 +253,11 @@ export class ProductsService {
     return product;
   }
 
-  async update(userId: string, productId: string, dto: UpdateProductDto): Promise<Product> {
+  async update(
+    userId: string,
+    productId: string,
+    dto: UpdateProductDto,
+  ): Promise<Product> {
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
       include: { store: { include: { sellerProfile: true } } },
@@ -242,8 +268,13 @@ export class ProductsService {
     }
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (product.store.sellerProfile.userId !== userId && user?.role !== 'ADMIN') {
-      throw new ForbiddenException('You do not have permission to modify this product');
+    if (
+      product.store.sellerProfile.userId !== userId &&
+      user?.role !== 'ADMIN'
+    ) {
+      throw new ForbiddenException(
+        'You do not have permission to modify this product',
+      );
     }
 
     const data: Prisma.ProductUpdateInput = {};
@@ -252,16 +283,20 @@ export class ProductsService {
     if (dto.description) data.description = dto.description;
     if (dto.price !== undefined) data.price = new Prisma.Decimal(dto.price);
     if (dto.compareAtPrice !== undefined) {
-      data.compareAtPrice = dto.compareAtPrice ? new Prisma.Decimal(dto.compareAtPrice) : null;
+      data.compareAtPrice = dto.compareAtPrice
+        ? new Prisma.Decimal(dto.compareAtPrice)
+        : null;
     }
     if (dto.costPrice !== undefined) {
       data.costPrice = dto.costPrice ? new Prisma.Decimal(dto.costPrice) : null;
     }
     if (dto.stockQuantity !== undefined) data.stockQuantity = dto.stockQuantity;
-    if (dto.lowStockThreshold !== undefined) data.lowStockThreshold = dto.lowStockThreshold;
+    if (dto.lowStockThreshold !== undefined)
+      data.lowStockThreshold = dto.lowStockThreshold;
     if (dto.status) data.status = dto.status;
     if (dto.isFeatured !== undefined) data.isFeatured = dto.isFeatured;
-    if (dto.attributes) data.attributes = dto.attributes as Prisma.InputJsonValue;
+    if (dto.attributes)
+      data.attributes = dto.attributes as Prisma.InputJsonValue;
 
     if (dto.images && dto.images.length > 0) {
       // Replace existing gallery images with the newly supplied set
@@ -288,13 +323,18 @@ export class ProductsService {
 
     // Re-index product embedding with updated content
     this.aiService.indexProductEmbedding(updated.id).catch((err) => {
-      this.logger.warn(`Failed to update embedding for product ${updated.id}: ${err.message}`);
+      this.logger.warn(
+        `Failed to update embedding for product ${updated.id}: ${err.message}`,
+      );
     });
 
     return updated;
   }
 
-  async remove(userId: string, productId: string): Promise<{ message: string }> {
+  async remove(
+    userId: string,
+    productId: string,
+  ): Promise<{ message: string }> {
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
       include: { store: { include: { sellerProfile: true } } },
@@ -305,8 +345,13 @@ export class ProductsService {
     }
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (product.store.sellerProfile.userId !== userId && user?.role !== 'ADMIN') {
-      throw new ForbiddenException('You do not have permission to delete this product');
+    if (
+      product.store.sellerProfile.userId !== userId &&
+      user?.role !== 'ADMIN'
+    ) {
+      throw new ForbiddenException(
+        'You do not have permission to delete this product',
+      );
     }
 
     // Soft delete / archive to keep catalog data safe
@@ -315,7 +360,9 @@ export class ProductsService {
       data: { status: 'ARCHIVED' },
     });
 
-    return { message: `Product '${product.title}' has been archived successfully` };
+    return {
+      message: `Product '${product.title}' has been archived successfully`,
+    };
   }
 
   async getRecommendations(idOrSlug: string, limit: number = 6) {

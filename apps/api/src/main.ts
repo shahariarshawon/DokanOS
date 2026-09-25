@@ -30,7 +30,9 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   // Trust reverse proxy headers (Caddy / Nginx / Cloudflare)
-  const expressApp = app.getHttpAdapter().getInstance() as { set: (k: string, v: unknown) => void };
+  const expressApp = app.getHttpAdapter().getInstance() as {
+    set: (k: string, v: unknown) => void;
+  };
   if (typeof expressApp.set === 'function') {
     expressApp.set('trust proxy', 1);
   }
@@ -67,4 +69,4 @@ async function bootstrap() {
   );
 }
 
-bootstrap();
+void bootstrap();

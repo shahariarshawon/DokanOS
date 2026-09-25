@@ -71,14 +71,18 @@ export class AiService {
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
   ) {
-    this.aiBaseUrl = this.configService.get<string>('AI_SERVICE_URL') || 'http://127.0.0.1:8000';
+    this.aiBaseUrl =
+      this.configService.get<string>('AI_SERVICE_URL') ||
+      'http://127.0.0.1:8000';
     this.internalKey = this.configService.get<string>('AI_INTERNAL_KEY');
   }
 
   /**
    * AI Shopping Assistant (RAG Pipeline)
    */
-  async chatShoppingAssistant(dto: ShoppingChatDto): Promise<ShoppingAssistantResult> {
+  async chatShoppingAssistant(
+    dto: ShoppingChatDto,
+  ): Promise<ShoppingAssistantResult> {
     const payload = {
       query: dto.message,
       conversation_id: dto.conversationId,
@@ -107,31 +111,37 @@ export class AiService {
       return {
         conversationId: data.conversation_id,
         reply: data.reply,
-        recommendedProducts: (data.recommended_products || []).map((p: any) => ({
-          id: p.id,
-          title: p.title,
-          slug: p.slug,
-          price: String(p.price),
-          rating: String(p.rating),
-          storeName: p.store_name,
-          categoryName: p.category_name,
-          imageUrl: p.image_url,
-          similarityScore: p.similarity_score,
-          recommendationReason: p.recommendation_reason,
-        })),
-        intent: data.intent ? {
-          query: data.intent.query,
-          detectedCategory: data.intent.detected_category,
-          minPrice: data.intent.min_price,
-          maxPrice: data.intent.max_price,
-          extractedFeatures: data.intent.extracted_features,
-          semanticIntent: data.intent.semantic_intent,
-        } : undefined,
+        recommendedProducts: (data.recommended_products || []).map(
+          (p: any) => ({
+            id: p.id,
+            title: p.title,
+            slug: p.slug,
+            price: String(p.price),
+            rating: String(p.rating),
+            storeName: p.store_name,
+            categoryName: p.category_name,
+            imageUrl: p.image_url,
+            similarityScore: p.similarity_score,
+            recommendationReason: p.recommendation_reason,
+          }),
+        ),
+        intent: data.intent
+          ? {
+              query: data.intent.query,
+              detectedCategory: data.intent.detected_category,
+              minPrice: data.intent.min_price,
+              maxPrice: data.intent.max_price,
+              extractedFeatures: data.intent.extracted_features,
+              semanticIntent: data.intent.semantic_intent,
+            }
+          : undefined,
         cached: data.cached,
         executionTimeMs: data.execution_time_ms,
       };
     } catch (err: unknown) {
-      this.logger.warn(`AI Service unavailable or timed out: ${(err as Error).message}. Using relational fallback.`);
+      this.logger.warn(
+        `AI Service unavailable or timed out: ${(err as Error).message}. Using relational fallback.`,
+      );
       return this.fallbackShoppingSearch(dto);
     }
   }
@@ -139,14 +149,19 @@ export class AiService {
   /**
    * AI Seller Assistant (Description, Marketing Text & SEO Copilot)
    */
-  async generateSellerCopy(dto: SellerGenerateDto): Promise<SellerAssistantResult> {
+  async generateSellerCopy(
+    dto: SellerGenerateDto,
+  ): Promise<SellerAssistantResult> {
     const name = dto.productName || dto.title || 'Product';
     const features = dto.features || dto.keyFeatures || [];
 
     const payload = {
       product_name: name,
       category: dto.category,
-      features: features.length > 0 ? features : ['High quality materials', 'Modern ergonomic design'],
+      features:
+        features.length > 0
+          ? features
+          : ['High quality materials', 'Modern ergonomic design'],
       tone: dto.tone || 'PROFESSIONAL',
     };
 
@@ -169,19 +184,25 @@ export class AiService {
       return {
         description: data.description,
         descriptionMarkdown: data.description,
-        marketingText: data.marketing_text || `Elevate your lifestyle with ${name}. Premium quality crafted for perfection.`,
+        marketingText:
+          data.marketing_text ||
+          `Elevate your lifestyle with ${name}. Premium quality crafted for perfection.`,
         seoKeywords: data.seo_keywords,
         tags: data.tags,
         seoMeta: {
           metaTitle: data.seo_meta?.meta_title || `${name} | DokanOS`,
-          metaDescription: data.seo_meta?.meta_description || `Discover ${name} in ${dto.category}.`,
+          metaDescription:
+            data.seo_meta?.meta_description ||
+            `Discover ${name} in ${dto.category}.`,
           keywords: data.seo_meta?.keywords || data.seo_keywords || [],
         },
         keySellingPoints: data.key_selling_points || features,
         cached: data.cached,
       };
     } catch (err: unknown) {
-      this.logger.warn(`AI Service unavailable for seller copy: ${(err as Error).message}. Using fallback generator.`);
+      this.logger.warn(
+        `AI Service unavailable for seller copy: ${(err as Error).message}. Using fallback generator.`,
+      );
       return this.fallbackSellerCopy(name, dto.category, features);
     }
   }
@@ -197,7 +218,9 @@ export class AiService {
     const priceTolerance = query?.priceTolerance ?? 0.35;
     const sameCategory = query?.sameCategory ?? false;
 
-    const url = new URL(`${this.aiBaseUrl}/v1/recommendations/products/${productId}`);
+    const url = new URL(
+      `${this.aiBaseUrl}/v1/recommendations/products/${productId}`,
+    );
     url.searchParams.set('limit', String(limit));
     url.searchParams.set('price_tolerance', String(priceTolerance));
     url.searchParams.set('same_category', String(sameCategory));
@@ -250,22 +273,31 @@ export class AiService {
    */
   async indexProductEmbedding(productId: string): Promise<void> {
     try {
-      const response = await fetch(`${this.aiBaseUrl}/v1/embeddings/product/${productId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(this.internalKey ? { 'X-Internal-Key': this.internalKey } : {}),
+      const response = await fetch(
+        `${this.aiBaseUrl}/v1/embeddings/product/${productId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(this.internalKey ? { 'X-Internal-Key': this.internalKey } : {}),
+          },
+          signal: AbortSignal.timeout(10000),
         },
-        signal: AbortSignal.timeout(10000),
-      });
+      );
 
       if (response.ok) {
-        this.logger.log(`Product '${productId}' embedding indexed successfully.`);
+        this.logger.log(
+          `Product '${productId}' embedding indexed successfully.`,
+        );
       } else {
-        this.logger.warn(`Failed to index product '${productId}' embedding: HTTP ${response.status}`);
+        this.logger.warn(
+          `Failed to index product '${productId}' embedding: HTTP ${response.status}`,
+        );
       }
     } catch (err: unknown) {
-      this.logger.warn(`Could not index embedding for product '${productId}': ${(err as Error).message}`);
+      this.logger.warn(
+        `Could not index embedding for product '${productId}': ${(err as Error).message}`,
+      );
     }
   }
 
@@ -296,7 +328,9 @@ export class AiService {
   /**
    * Graceful fallback when AI service is offline
    */
-  private async fallbackShoppingSearch(dto: ShoppingChatDto): Promise<ShoppingAssistantResult> {
+  private async fallbackShoppingSearch(
+    dto: ShoppingChatDto,
+  ): Promise<ShoppingAssistantResult> {
     const products = await this.prisma.product.findMany({
       where: {
         status: 'ACTIVE',
@@ -329,15 +363,20 @@ export class AiService {
 
     return {
       conversationId: dto.conversationId,
-      reply: recommended.length > 0
-        ? `Here are top rated recommendations from DokanOS matching "${dto.message}":`
-        : `We couldn't find items currently matching "${dto.message}". Try exploring our top categories!`,
+      reply:
+        recommended.length > 0
+          ? `Here are top rated recommendations from DokanOS matching "${dto.message}":`
+          : `We couldn't find items currently matching "${dto.message}". Try exploring our top categories!`,
       recommendedProducts: recommended,
       executionTimeMs: 15,
     };
   }
 
-  private fallbackSellerCopy(name: string, category: string, features: string[]): SellerAssistantResult {
+  private fallbackSellerCopy(
+    name: string,
+    category: string,
+    features: string[],
+  ): SellerAssistantResult {
     const featureBullets = features.map((f) => `- **${f}**`).join('\n');
     const desc = `### ${name}\n\nDesigned for top-tier performance in **${category}**, this product brings reliable craftsmanship and modern utility.\n\n#### Key Features:\n${featureBullets || '- Built with premium grade components'}\n\nShop with confidence on DokanOS with fast shipping and authentic merchant guarantees.`;
 
@@ -349,7 +388,11 @@ export class AiService {
       'dokan marketplace',
     ];
 
-    const tags = [category.toLowerCase().replace(/\s+/g, '-'), 'featured', 'best-seller'];
+    const tags = [
+      category.toLowerCase().replace(/\s+/g, '-'),
+      'featured',
+      'best-seller',
+    ];
 
     return {
       description: desc,
@@ -359,10 +402,17 @@ export class AiService {
       tags,
       seoMeta: {
         metaTitle: `${name} | DokanOS`.slice(0, 60),
-        metaDescription: `Discover ${name} in ${category}. Premium features and guaranteed authenticity.`.slice(0, 155),
+        metaDescription:
+          `Discover ${name} in ${category}. Premium features and guaranteed authenticity.`.slice(
+            0,
+            155,
+          ),
         keywords: seoKeywords,
       },
-      keySellingPoints: features.length > 0 ? features : ['Durable construction', 'Verified seller'],
+      keySellingPoints:
+        features.length > 0
+          ? features
+          : ['Durable construction', 'Verified seller'],
     };
   }
 
@@ -417,7 +467,9 @@ export class AiService {
       similarityScore: 0.7,
       compositeScore: 0.75,
       matchReasons: [
-        p.categoryId === source.categoryId ? `Same category: ${p.category.name}` : 'Similar price tier',
+        p.categoryId === source.categoryId
+          ? `Same category: ${p.category.name}`
+          : 'Similar price tier',
       ],
     }));
 

@@ -9,7 +9,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { AiService } from './ai.service.js';
 import { ShoppingChatDto } from './dto/shopping-chat.dto.js';
 import { SellerGenerateDto } from './dto/seller-generate.dto.js';
@@ -30,7 +35,10 @@ export class AiController {
     description:
       'Natural language conversational search. Embeds user query, queries pgvector database using cosine distance, and synthesizes contextual product recommendations with transparent explanations.',
   })
-  @ApiResponse({ status: 200, description: 'AI conversational response with recommended products' })
+  @ApiResponse({
+    status: 200,
+    description: 'AI conversational response with recommended products',
+  })
   @Post('chat')
   @HttpCode(HttpStatus.OK)
   async shoppingChat(@Body() dto: ShoppingChatDto) {
@@ -45,7 +53,10 @@ export class AiController {
     description:
       'Generates high-converting markdown product descriptions, SEO keywords, punchy marketing promotional copy, meta tags, and category tags.',
   })
-  @ApiResponse({ status: 200, description: 'Generated description and SEO metadata' })
+  @ApiResponse({
+    status: 200,
+    description: 'Generated description and SEO metadata',
+  })
   @Post('product-description')
   @HttpCode(HttpStatus.OK)
   async generateSellerCopy(@Body() dto: SellerGenerateDto) {
@@ -58,7 +69,10 @@ export class AiController {
     description:
       'Calculates content-based product recommendations using pgvector embedding cosine distance, category matching, price band proximity, and hardware attribute overlap.',
   })
-  @ApiResponse({ status: 200, description: 'List of scored product recommendations' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of scored product recommendations',
+  })
   @Get('recommendations/:productId')
   async getRecommendations(
     @Param('productId') productId: string,

@@ -9,7 +9,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { ChatService, EnrichedConversation } from './chat.service.js';
 import { RedisService, UserPresence } from '../common/redis/redis.service.js';
 import { CreateConversationDto } from './dto/create-conversation.dto.js';
@@ -33,8 +38,14 @@ export class ChatController {
   ) {}
 
   @Post('conversations')
-  @ApiOperation({ summary: 'Initiate or retrieve an existing conversation with a vendor store' })
-  @ApiResponse({ status: 201, description: 'Conversation thread created or retrieved' })
+  @ApiOperation({
+    summary:
+      'Initiate or retrieve an existing conversation with a vendor store',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Conversation thread created or retrieved',
+  })
   async createConversation(
     @CurrentUser('id') userId: string,
     @Body() dto: CreateConversationDto,
@@ -43,12 +54,20 @@ export class ChatController {
   }
 
   @Get('conversations')
-  @ApiOperation({ summary: 'List all active conversations for the authenticated user' })
-  @ApiResponse({ status: 200, description: 'List of conversations with latest messages' })
+  @ApiOperation({
+    summary: 'List all active conversations for the authenticated user',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of conversations with latest messages',
+  })
   async getConversations(
     @CurrentUser('id') userId: string,
     @Query() query: QueryConversationsDto,
-  ): Promise<{ data: EnrichedConversation[]; meta: { total: number; page: number; limit: number } }> {
+  ): Promise<{
+    data: EnrichedConversation[];
+    meta: { total: number; page: number; limit: number };
+  }> {
     return this.chatService.getUserConversations(userId, query);
   }
 
@@ -59,12 +78,15 @@ export class ChatController {
     @CurrentUser('id') userId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<EnrichedConversation> {
-    const { conversation } = await this.chatService.verifyConversationParticipant(userId, id);
+    const { conversation } =
+      await this.chatService.verifyConversationParticipant(userId, id);
     return conversation;
   }
 
   @Get('conversations/:id/messages')
-  @ApiOperation({ summary: 'Fetch message history within a conversation thread' })
+  @ApiOperation({
+    summary: 'Fetch message history within a conversation thread',
+  })
   @ApiResponse({ status: 200, description: 'Paginated message history' })
   async getMessages(
     @CurrentUser('id') userId: string,
@@ -78,7 +100,9 @@ export class ChatController {
   }
 
   @Post('conversations/:id/messages')
-  @ApiOperation({ summary: 'Send a message in a conversation thread (REST fallback)' })
+  @ApiOperation({
+    summary: 'Send a message in a conversation thread (REST fallback)',
+  })
   @ApiResponse({ status: 201, description: 'Message created and dispatched' })
   async sendMessage(
     @CurrentUser('id') userId: string,
@@ -89,7 +113,9 @@ export class ChatController {
   }
 
   @Patch('conversations/:id/read')
-  @ApiOperation({ summary: 'Mark unread incoming messages in a conversation as read' })
+  @ApiOperation({
+    summary: 'Mark unread incoming messages in a conversation as read',
+  })
   @ApiResponse({ status: 200, description: 'Messages marked as read' })
   async markAsRead(
     @CurrentUser('id') userId: string,
@@ -99,7 +125,10 @@ export class ChatController {
   }
 
   @Get('presence/:userId')
-  @ApiOperation({ summary: 'Query online presence and last seen timestamp for a specific user' })
+  @ApiOperation({
+    summary:
+      'Query online presence and last seen timestamp for a specific user',
+  })
   @ApiResponse({ status: 200, description: 'User presence information' })
   async getUserPresence(
     @Param('userId', ParseUUIDPipe) targetUserId: string,
@@ -110,7 +139,9 @@ export class ChatController {
   @Post('presence/batch')
   @ApiOperation({ summary: 'Batch query online presence for multiple users' })
   @ApiResponse({ status: 200, description: 'List of presence states' })
-  async getBatchPresence(@Body() dto: BatchPresenceDto): Promise<UserPresence[]> {
+  async getBatchPresence(
+    @Body() dto: BatchPresenceDto,
+  ): Promise<UserPresence[]> {
     return this.redisService.getUsersPresence(dto.userIds);
   }
 }

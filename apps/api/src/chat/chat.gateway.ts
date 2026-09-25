@@ -53,7 +53,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       const token = this.extractToken(client);
       if (!token) {
-        this.logger.warn(`Unauthorized WebSocket connection rejected: [socket: ${client.id}]`);
+        this.logger.warn(
+          `Unauthorized WebSocket connection rejected: [socket: ${client.id}]`,
+        );
         client.disconnect();
         return;
       }
@@ -68,7 +70,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       await client.join(`user:${userId}`);
 
       // Track online presence in Redis
-      const { wasOffline } = await this.redisService.setUserOnline(userId, client.id);
+      const { wasOffline } = await this.redisService.setUserOnline(
+        userId,
+        client.id,
+      );
 
       if (wasOffline) {
         this.server.emit('presence:change', {
@@ -78,10 +83,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         });
       }
 
-      this.logger.log(`Chat client connected: [user: ${userId}, socket: ${client.id}]`);
+      this.logger.log(
+        `Chat client connected: [user: ${userId}, socket: ${client.id}]`,
+      );
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Socket authentication failed for ${client.id}: ${message}`);
+      this.logger.warn(
+        `Socket authentication failed for ${client.id}: ${message}`,
+      );
       client.disconnect();
     }
   }
@@ -93,7 +102,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const user = (client as AuthenticatedSocket).data?.user;
     if (user?.sub) {
       const userId = user.sub;
-      const { isOffline, lastSeen } = await this.redisService.setUserOffline(userId, client.id);
+      const { isOffline, lastSeen } = await this.redisService.setUserOffline(
+        userId,
+        client.id,
+      );
 
       if (isOffline) {
         this.server.emit('presence:change', {
@@ -103,7 +115,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         });
       }
 
-      this.logger.log(`Chat client disconnected: [user: ${userId}, socket: ${client.id}]`);
+      this.logger.log(
+        `Chat client disconnected: [user: ${userId}, socket: ${client.id}]`,
+      );
     }
   }
 
@@ -125,7 +139,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     // Verify user is an authorized participant
-    await this.chatService.verifyConversationParticipant(userId, data.conversationId);
+    await this.chatService.verifyConversationParticipant(
+      userId,
+      data.conversationId,
+    );
 
     const room = `conversation:${data.conversationId}`;
     await client.join(room);
@@ -157,7 +174,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @UsePipes(new ValidationPipe({ transform: true }))
   async handleSendMessage(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() payload: { conversationId: string; content: string; attachments?: SendMessageDto['attachments'] },
+    @MessageBody()
+    payload: {
+      conversationId: string;
+      content: string;
+      attachments?: SendMessageDto['attachments'];
+    },
   ): Promise<{ status: string; data: unknown }> {
     const userId = client.data.user?.sub;
     if (!userId) {
@@ -168,10 +190,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       throw new WsException('conversationId and content are required');
     }
 
-    const { message } = await this.chatService.sendMessage(userId, payload.conversationId, {
-      content: payload.content,
-      attachments: payload.attachments,
-    });
+    const { message } = await this.chatService.sendMessage(
+      userId,
+      payload.conversationId,
+      {
+        content: payload.content,
+        attachments: payload.attachments,
+      },
+    );
 
     const room = `conversation:${payload.conversationId}`;
     // Broadcast message to everyone in the room (including sender or excluding sender if optimistic UI is used)
@@ -229,15 +255,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       throw new WsException('Invalid payload');
     }
 
-    const result = await this.chatService.markAsRead(userId, data.conversationId);
+    const result = await this.chatService.markAsRead(
+      userId,
+      data.conversationId,
+    );
 
     // Broadcast read receipt to room
-    this.server.to(`conversation:${data.conversationId}`).emit('messages:read_receipt', {
-      conversationId: data.conversationId,
-      readerId: userId,
-      readAt: result.readAt,
-      count: result.updatedCount,
-    });
+    this.server
+      .to(`conversation:${data.conversationId}`)
+      .emit('messages:read_receipt', {
+        conversationId: data.conversationId,
+        readerId: userId,
+        readAt: result.readAt,
+        count: result.updatedCount,
+      });
 
     return { status: 'ok', updatedCount: result.updatedCount };
   }
@@ -257,18 +288,26 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private extractToken(client: Socket): string | null {
     const authHeader = client.handshake.headers['authorization'];
-    if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+    if (
+      authHeader &&
+      typeof authHeader === 'string' &&
+      authHeader.startsWith('Bearer ')
+    ) {
       return authHeader.substring(7).trim();
     }
 
     const tokenFromAuth = client.handshake.auth?.token;
     if (tokenFromAuth && typeof tokenFromAuth === 'string') {
-      return tokenFromAuth.startsWith('Bearer ') ? tokenFromAuth.substring(7).trim() : tokenFromAuth;
+      return tokenFromAuth.startsWith('Bearer ')
+        ? tokenFromAuth.substring(7).trim()
+        : tokenFromAuth;
     }
 
     const queryToken = client.handshake.query?.token;
     if (queryToken && typeof queryToken === 'string') {
-      return queryToken.startsWith('Bearer ') ? queryToken.substring(7).trim() : queryToken;
+      return queryToken.startsWith('Bearer ')
+        ? queryToken.substring(7).trim()
+        : queryToken;
     }
 
     return null;

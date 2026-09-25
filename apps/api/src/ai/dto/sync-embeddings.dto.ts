@@ -3,7 +3,11 @@ import { Type } from 'class-transformer';
 import { IsBoolean, IsNumber, IsOptional, Max, Min } from 'class-validator';
 
 export class SyncEmbeddingsDto {
-  @ApiPropertyOptional({ example: false, default: false, description: 'Re-index already embedded products' })
+  @ApiPropertyOptional({
+    example: false,
+    default: false,
+    description: 'Re-index already embedded products',
+  })
   @Type(() => Boolean)
   @IsBoolean()
   @IsOptional()

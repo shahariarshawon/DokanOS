@@ -26,7 +26,9 @@ export interface AuthenticatedSocket extends Socket {
   },
   namespace: '/notifications',
 })
-export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class NotificationsGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   private readonly logger = new Logger(NotificationsGateway.name);
 
   @WebSocketServer()
@@ -41,7 +43,9 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
     try {
       const token = this.extractToken(client);
       if (!token) {
-        this.logger.warn(`Unauthorized notification connection attempt from ${client.id}`);
+        this.logger.warn(
+          `Unauthorized notification connection attempt from ${client.id}`,
+        );
         client.disconnect();
         return;
       }
@@ -53,10 +57,14 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
       const room = `user:${payload.sub}`;
       await client.join(room);
 
-      this.logger.log(`User ${payload.sub} connected to notification stream [socket: ${client.id}]`);
+      this.logger.log(
+        `User ${payload.sub} connected to notification stream [socket: ${client.id}]`,
+      );
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Notification socket auth failed for ${client.id}: ${message}`);
+      this.logger.warn(
+        `Notification socket auth failed for ${client.id}: ${message}`,
+      );
       client.disconnect();
     }
   }
@@ -76,18 +84,26 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
 
   private extractToken(client: Socket): string | null {
     const authHeader = client.handshake.headers['authorization'];
-    if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+    if (
+      authHeader &&
+      typeof authHeader === 'string' &&
+      authHeader.startsWith('Bearer ')
+    ) {
       return authHeader.substring(7).trim();
     }
 
     const tokenFromAuth = client.handshake.auth?.token;
     if (tokenFromAuth && typeof tokenFromAuth === 'string') {
-      return tokenFromAuth.startsWith('Bearer ') ? tokenFromAuth.substring(7).trim() : tokenFromAuth;
+      return tokenFromAuth.startsWith('Bearer ')
+        ? tokenFromAuth.substring(7).trim()
+        : tokenFromAuth;
     }
 
     const queryToken = client.handshake.query?.token;
     if (queryToken && typeof queryToken === 'string') {
-      return queryToken.startsWith('Bearer ') ? queryToken.substring(7).trim() : queryToken;
+      return queryToken.startsWith('Bearer ')
+        ? queryToken.substring(7).trim()
+        : queryToken;
     }
 
     return null;

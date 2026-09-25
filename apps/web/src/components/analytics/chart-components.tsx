@@ -186,13 +186,7 @@ export function DistributionPie({ data }: DistributionPieProps) {
     <div className="w-full h-[220px] flex items-center justify-center">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
-          <Pie
-            data={data}
-            innerRadius={55}
-            outerRadius={80}
-            paddingAngle={4}
-            dataKey="value"
-          >
+          <Pie data={data} innerRadius={55} outerRadius={80} paddingAngle={4} dataKey="value">
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} />
             ))}
@@ -221,10 +215,21 @@ export function DistributionPie({ data }: DistributionPieProps) {
 // CUSTOM TOOLTIP RENDERERS
 // -------------------------------------------------------------
 
-function CustomSalesTooltip({ active, payload, label }: any) {
+interface TooltipPayloadItem {
+  dataKey?: string | number;
+  value?: number;
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: TooltipPayloadItem[];
+  label?: string | number;
+}
+
+function CustomSalesTooltip({ active, payload, label }: CustomTooltipProps) {
   if (active && payload && payload.length) {
-    const sales = payload.find((p: any) => p.dataKey === 'sales')?.value || 0;
-    const rev = payload.find((p: any) => p.dataKey === 'revenue')?.value || 0;
+    const sales = payload.find((p) => p.dataKey === 'sales')?.value || 0;
+    const rev = payload.find((p) => p.dataKey === 'revenue')?.value || 0;
 
     return (
       <div className="bg-zinc-900 border border-zinc-700/80 p-3 rounded-lg shadow-xl text-xs space-y-1 backdrop-blur-md">
@@ -243,7 +248,7 @@ function CustomSalesTooltip({ active, payload, label }: any) {
   return null;
 }
 
-function CustomOrdersTooltip({ active, payload, label }: any) {
+function CustomOrdersTooltip({ active, payload, label }: CustomTooltipProps) {
   if (active && payload && payload.length) {
     const orders = payload[0]?.value || 0;
     return (
@@ -256,10 +261,10 @@ function CustomOrdersTooltip({ active, payload, label }: any) {
   return null;
 }
 
-function CustomAdminTooltip({ active, payload, label }: any) {
+function CustomAdminTooltip({ active, payload, label }: CustomTooltipProps) {
   if (active && payload && payload.length) {
-    const gmv = payload.find((p: any) => p.dataKey === 'gmv')?.value || 0;
-    const comm = payload.find((p: any) => p.dataKey === 'platformRevenue')?.value || 0;
+    const gmv = payload.find((p) => p.dataKey === 'gmv')?.value || 0;
+    const comm = payload.find((p) => p.dataKey === 'platformRevenue')?.value || 0;
 
     return (
       <div className="bg-zinc-900 border border-zinc-700/80 p-3 rounded-lg shadow-xl text-xs space-y-1 backdrop-blur-md">
@@ -270,7 +275,8 @@ function CustomAdminTooltip({ active, payload, label }: any) {
         </p>
         <p className="text-amber-400 flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
-          Platform Commission: <span className="font-mono font-medium">${comm.toLocaleString()}</span>
+          Platform Commission:{' '}
+          <span className="font-mono font-medium">${comm.toLocaleString()}</span>
         </p>
       </div>
     );

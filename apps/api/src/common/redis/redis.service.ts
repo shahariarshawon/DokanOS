@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
 
@@ -86,7 +91,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    * Register an active socket connection for a user.
    * If this is the user's first active socket, they transition from offline to online.
    */
-  async setUserOnline(userId: string, socketId: string): Promise<{ wasOffline: boolean }> {
+  async setUserOnline(
+    userId: string,
+    socketId: string,
+  ): Promise<{ wasOffline: boolean }> {
     try {
       const socketKey = `presence:sockets:${userId}`;
       const statusKey = `presence:user:${userId}`;
@@ -181,7 +189,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
       const results = await pipeline.exec();
       if (!results) {
-        return userIds.map((userId) => ({ userId, status: 'offline', lastSeen: null }));
+        return userIds.map((userId) => ({
+          userId,
+          status: 'offline',
+          lastSeen: null,
+        }));
       }
 
       const presenceList: UserPresence[] = [];
@@ -190,8 +202,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         const statusResult = results[i * 2];
         const lastSeenResult = results[i * 2 + 1];
 
-        const status = statusResult && !statusResult[0] ? statusResult[1] : null;
-        const lastSeen = lastSeenResult && !lastSeenResult[0] ? (lastSeenResult[1] as string) : null;
+        const status =
+          statusResult && !statusResult[0] ? statusResult[1] : null;
+        const lastSeen =
+          lastSeenResult && !lastSeenResult[0]
+            ? (lastSeenResult[1] as string)
+            : null;
 
         presenceList.push({
           userId,
@@ -203,8 +219,14 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       return presenceList;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Failed to batch query user presence in Redis: ${message}`);
-      return userIds.map((userId) => ({ userId, status: 'offline', lastSeen: null }));
+      this.logger.warn(
+        `Failed to batch query user presence in Redis: ${message}`,
+      );
+      return userIds.map((userId) => ({
+        userId,
+        status: 'offline',
+        lastSeen: null,
+      }));
     }
   }
 }

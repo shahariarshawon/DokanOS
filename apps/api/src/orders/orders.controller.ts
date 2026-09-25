@@ -20,7 +20,9 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
-  @ApiOperation({ summary: 'Create new order from user cart (atomic checkout)' })
+  @ApiOperation({
+    summary: 'Create new order from user cart (atomic checkout)',
+  })
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async createOrder(

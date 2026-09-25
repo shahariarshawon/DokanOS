@@ -1,11 +1,18 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { User, Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { PrismaService } from '../database/prisma.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 
-export type UserWithoutSecrets = Omit<User, 'passwordHash' | 'refreshTokenHash'>;
+export type UserWithoutSecrets = Omit<
+  User,
+  'passwordHash' | 'refreshTokenHash'
+>;
 
 @Injectable()
 export class UsersService {
@@ -55,7 +62,10 @@ export class UsersService {
     });
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<UserWithoutSecrets> {
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+  ): Promise<UserWithoutSecrets> {
     await this.findById(id);
 
     const data: Prisma.UserUpdateInput = {
@@ -78,7 +88,10 @@ export class UsersService {
     return this.sanitizeUser(updated);
   }
 
-  async setRefreshTokenHash(userId: string, refreshTokenHash: string | null): Promise<void> {
+  async setRefreshTokenHash(
+    userId: string,
+    refreshTokenHash: string | null,
+  ): Promise<void> {
     await this.prisma.user.update({
       where: { id: userId },
       data: { refreshTokenHash },

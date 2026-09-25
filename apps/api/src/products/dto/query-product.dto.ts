@@ -1,6 +1,14 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEnum, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import {
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  Min,
+} from 'class-validator';
 import { ProductStatus } from '@prisma/client';
 
 export enum ProductSortBy {
@@ -26,7 +34,10 @@ export class QueryProductDto {
   @IsOptional()
   limit: number = 20;
 
-  @ApiPropertyOptional({ example: 'mechanical keyboard', description: 'Search keywords in title or description' })
+  @ApiPropertyOptional({
+    example: 'mechanical keyboard',
+    description: 'Search keywords in title or description',
+  })
   @IsString()
   @IsOptional()
   search?: string;
@@ -41,14 +52,14 @@ export class QueryProductDto {
   @IsOptional()
   storeId?: string;
 
-  @ApiPropertyOptional({ example: 50.00 })
+  @ApiPropertyOptional({ example: 50.0 })
   @Type(() => Number)
   @IsNumber()
   @Min(0)
   @IsOptional()
   minPrice?: number;
 
-  @ApiPropertyOptional({ example: 300.00 })
+  @ApiPropertyOptional({ example: 300.0 })
   @Type(() => Number)
   @IsNumber()
   @Min(0)

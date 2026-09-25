@@ -10,7 +10,9 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('profile')
-  async getProfile(@CurrentUser('id') userId: string): Promise<UserWithoutSecrets> {
+  async getProfile(
+    @CurrentUser('id') userId: string,
+  ): Promise<UserWithoutSecrets> {
     return this.usersService.findById(userId);
   }
 

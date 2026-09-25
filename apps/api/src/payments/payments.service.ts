@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Payment, PaymentProvider, Prisma } from '@prisma/client';
+import { PaymentProvider, Prisma } from '@prisma/client';
 import Stripe from 'stripe';
 import { PrismaService } from '../database/prisma.service.js';
 import { CreatePaymentDto } from './dto/create-payment.dto.js';
@@ -31,12 +31,21 @@ export class PaymentsService {
     private readonly configService: ConfigService,
   ) {
     const stripeKey = this.configService.get<string>('STRIPE_SECRET_KEY');
-    if (stripeKey && !stripeKey.includes('dummy') && !stripeKey.includes('mock')) {
-      this.stripe = new Stripe(stripeKey, { apiVersion: '2025-02-24.acacia' as never });
+    if (
+      stripeKey &&
+      !stripeKey.includes('dummy') &&
+      !stripeKey.includes('mock')
+    ) {
+      this.stripe = new Stripe(stripeKey, {
+        apiVersion: '2025-02-24.acacia' as never,
+      });
     }
   }
 
-  async createPayment(userId: string, dto: CreatePaymentDto): Promise<PaymentIntentResponse> {
+  async createPayment(
+    userId: string,
+    dto: CreatePaymentDto,
+  ): Promise<PaymentIntentResponse> {
     const order = await this.prisma.order.findUnique({
       where: { id: dto.orderId },
     });
@@ -46,11 +55,15 @@ export class PaymentsService {
     }
 
     if (order.userId !== userId) {
-      throw new ForbiddenException('You do not have permission to pay for this order');
+      throw new ForbiddenException(
+        'You do not have permission to pay for this order',
+      );
     }
 
     if (order.status !== 'PENDING') {
-      throw new BadRequestException(`Order cannot be paid because status is '${order.status}'`);
+      throw new BadRequestException(
+        `Order cannot be paid because status is '${order.status}'`,
+      );
     }
 
     if (dto.provider === 'STRIPE') {
@@ -59,7 +72,9 @@ export class PaymentsService {
       return this.initiateSslCommerzPayment(order);
     }
 
-    throw new BadRequestException(`Unsupported payment provider '${dto.provider}'`);
+    throw new BadRequestException(
+      `Unsupported payment provider '${String(dto.provider)}'`,
+    );
   }
 
   private async initiateStripePayment(order: {
@@ -124,12 +139,13 @@ export class PaymentsService {
       },
     });
 
-    const isLive = this.configService.get<string>('SSLCOMMERZ_IS_LIVE') === 'true';
+    const isLive =
+      this.configService.get<string>('SSLCOMMERZ_IS_LIVE') === 'true';
     const baseUrl = isLive
       ? 'https://securepay.sslcommerz.com/gwprocess/v4/gw.php'
       : 'https://sandbox.sslcommerz.com/gwprocess/v4/gw.php';
 
-    const redirectUrl = `${baseUrl}?Q=${transactionId}&amount=${order.totalAmount}`;
+    const redirectUrl = `${baseUrl}?Q=${transactionId}&amount=${order.totalAmount.toString()}`;
 
     return {
       paymentId: payment.id,
@@ -141,16 +157,32 @@ export class PaymentsService {
     };
   }
 
-  async handleStripeWebhook(payload: Buffer | string, signature?: string): Promise<{ received: boolean }> {
-    let event: Stripe.Event | { type: string; data: { object: { id: string; metadata?: { orderId?: string } } } };
+  async handleStripeWebhook(
+    payload: Buffer | string,
+    signature?: string,
+  ): Promise<{ received: boolean }> {
+    let event:
+      | Stripe.Event
+      | {
+          type: string;
+          data: { object: { id: string; metadata?: { orderId?: string } } };
+        };
 
-    const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
+    const webhookSecret = this.configService.get<string>(
+      'STRIPE_WEBHOOK_SECRET',
+    );
 
     if (this.stripe && webhookSecret && signature) {
       try {
-        event = this.stripe.webhooks.constructEvent(payload, signature, webhookSecret);
+        event = this.stripe.webhooks.constructEvent(
+          payload,
+          signature,
+          webhookSecret,
+        );
       } catch (err: unknown) {
-        this.logger.error(`Webhook signature verification failed: ${(err as Error).message}`);
+        this.logger.error(
+          `Webhook signature verification failed: ${(err as Error).message}`,
+        );
         throw new BadRequestException('Webhook signature verification failed');
       }
     } else {
@@ -169,18 +201,29 @@ export class PaymentsService {
       const orderId = paymentIntent.metadata?.orderId;
       const transactionId = paymentIntent.id;
 
-      this.logger.log(`Stripe payment succeeded for Transaction: ${transactionId}, Order: ${orderId}`);
+      this.logger.log(
+        `Stripe payment succeeded for Transaction: ${transactionId}, Order: ${orderId}`,
+      );
       await this.settlePayment('STRIPE', transactionId, orderId, paymentIntent);
     }
 
     return { received: true };
   }
 
-  async handleSslCommerzWebhook(ipnPayload: Record<string, unknown>): Promise<{ status: string }> {
-    const tranId = String(ipnPayload.tran_id || ipnPayload.transactionId || '');
-    const status = String(ipnPayload.status || '').toUpperCase();
+  async handleSslCommerzWebhook(
+    ipnPayload: Record<string, unknown>,
+  ): Promise<{ status: string }> {
+    const rawTranId = ipnPayload.tran_id ?? ipnPayload.transactionId ?? '';
+    const tranId =
+      typeof rawTranId === 'string' ? rawTranId : JSON.stringify(rawTranId);
+    const rawStatus = ipnPayload.status ?? '';
+    const status = (
+      typeof rawStatus === 'string' ? rawStatus : JSON.stringify(rawStatus)
+    ).toUpperCase();
 
-    this.logger.log(`SSLCommerz IPN received for Transaction: ${tranId}, Status: ${status}`);
+    this.logger.log(
+      `SSLCommerz IPN received for Transaction: ${tranId}, Status: ${status}`,
+    );
 
     if (status === 'VALID' || status === 'VALIDATED' || status === 'SUCCESS') {
       await this.settlePayment('SSLCOMMERZ', tranId, undefined, ipnPayload);
@@ -200,7 +243,10 @@ export class PaymentsService {
     if (payment) {
       await this.prisma.payment.update({
         where: { id: payment.id },
-        data: { status: 'FAILED', rawGatewayResponse: ipnPayload as Prisma.InputJsonValue },
+        data: {
+          status: 'FAILED',
+          rawGatewayResponse: ipnPayload as Prisma.InputJsonValue,
+        },
       });
     }
 
@@ -231,12 +277,16 @@ export class PaymentsService {
       }
 
       if (!payment) {
-        this.logger.warn(`No pending payment found for Transaction '${transactionId}'`);
+        this.logger.warn(
+          `No pending payment found for Transaction '${transactionId}'`,
+        );
         return;
       }
 
       if (payment.status === 'COMPLETED') {
-        this.logger.log(`Payment '${payment.id}' was already completed. Skipping.`);
+        this.logger.log(
+          `Payment '${payment.id}' was already completed. Skipping.`,
+        );
         return;
       }
 
@@ -256,7 +306,9 @@ export class PaymentsService {
         data: { status: 'PAID' },
       });
 
-      this.logger.log(`Order '${payment.orderId}' successfully settled to PAID`);
+      this.logger.log(
+        `Order '${payment.orderId}' successfully settled to PAID`,
+      );
     });
   }
 }

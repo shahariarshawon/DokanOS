@@ -1,6 +1,12 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsDateString, IsEnum, IsOptional, IsUUID } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsUUID,
+} from 'class-validator';
 
 export enum AnalyticsTimeRange {
   LAST_7_DAYS = '7d',

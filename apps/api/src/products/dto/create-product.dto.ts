@@ -16,7 +16,9 @@ import {
 import { ProductStatus } from '@prisma/client';
 
 export class ProductImageDto {
-  @ApiProperty({ example: 'https://cdn.dokanos.com/products/keyboard-hero.webp' })
+  @ApiProperty({
+    example: 'https://cdn.dokanos.com/products/keyboard-hero.webp',
+  })
   @IsString()
   @IsNotEmpty()
   url!: string;
@@ -38,12 +40,18 @@ export class ProductImageDto {
 }
 
 export class CreateProductDto {
-  @ApiProperty({ example: 'a1c5d984-2e33-4f91-8dc1-6c2e3914a112', description: 'Store ID listing this SKU' })
+  @ApiProperty({
+    example: 'a1c5d984-2e33-4f91-8dc1-6c2e3914a112',
+    description: 'Store ID listing this SKU',
+  })
   @IsUUID('4', { message: 'storeId must be a valid UUID' })
   @IsNotEmpty()
   storeId!: string;
 
-  @ApiProperty({ example: '4c94b712-32a1-4089-9cb1-7c98112e45fa', description: 'Category ID' })
+  @ApiProperty({
+    example: '4c94b712-32a1-4089-9cb1-7c98112e45fa',
+    description: 'Category ID',
+  })
   @IsUUID('4', { message: 'categoryId must be a valid UUID' })
   @IsNotEmpty()
   categoryId!: string;
@@ -53,12 +61,18 @@ export class CreateProductDto {
   @IsNotEmpty({ message: 'Title is required' })
   title!: string;
 
-  @ApiPropertyOptional({ example: 'keychron-q1-pro-wireless-keyboard', description: 'URL slug (auto-generated if omitted)' })
+  @ApiPropertyOptional({
+    example: 'keychron-q1-pro-wireless-keyboard',
+    description: 'URL slug (auto-generated if omitted)',
+  })
   @IsString()
   @IsOptional()
   slug?: string;
 
-  @ApiProperty({ example: 'Full aluminum 75% mechanical keyboard with wireless Bluetooth 5.1.' })
+  @ApiProperty({
+    example:
+      'Full aluminum 75% mechanical keyboard with wireless Bluetooth 5.1.',
+  })
   @IsString()
   @IsNotEmpty({ message: 'Description is required' })
   description!: string;
@@ -86,7 +100,10 @@ export class CreateProductDto {
   @IsOptional()
   compareAtPrice?: number;
 
-  @ApiPropertyOptional({ example: 120.00, description: 'Cost price (private to seller)' })
+  @ApiPropertyOptional({
+    example: 120.0,
+    description: 'Cost price (private to seller)',
+  })
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)

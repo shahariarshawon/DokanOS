@@ -10,4 +10,3 @@ import { AiModule } from '../ai/ai.module.js';
   exports: [ProductsService],
 })
 export class ProductsModule {}
-

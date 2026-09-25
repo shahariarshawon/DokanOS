@@ -5,6 +5,7 @@
 DokanOS Phase 8 delivers a comprehensive, production-grade **Analytics and Business Intelligence (BI)** engine for both marketplace sellers and platform administrators.
 
 The system combines:
+
 1. **Telemetry & Event Ingestion Pipeline**: High-throughput, non-blocking ingestion of customer interactions (`PRODUCT_VIEW`, `STORE_VIEW`, `ADD_TO_CART`, `CHECKOUT_START`, `PURCHASE`).
 2. **Optimized Aggregation & Snapshot Data Structure**: Real-time indexed relational aggregations combined with daily snapshot tables (`DailyStoreAnalytics` and `DailyPlatformAnalytics`) for zero-lag historical trend reporting.
 3. **Multi-Tier Caching Architecture**: Primary Redis caching with transparent in-memory TTL fallback to protect the primary transactional database from high-frequency dashboard queries.
@@ -49,35 +50,37 @@ The system combines:
 ## 2. Metrics & Dashboards Breakdown
 
 ### A. Seller Dashboard (`/analytics/seller/dashboard`)
+
 Designed for merchant store owners to monitor sales velocity, financial earnings, and customer funnel performance:
 
-| Metric | Calculation / Source | Purpose |
-|---|---|---|
-| **Total Sales** | $\sum \text{OrderItem.totalPrice}$ for orders not cancelled/refunded | Gross customer transaction volume |
-| **Net Revenue** | $\sum \text{OrderItem.vendorPayoutAmount}$ | Net seller earnings after marketplace take-rate commission |
-| **Orders Count** | $\text{COUNT}(\text{DISTINCT } \text{OrderItem.orderId})$ | Total orders placed containing store items |
-| **Items Sold** | $\sum \text{OrderItem.quantity}$ | Total individual SKU units purchased |
-| **Average Order Value (AOV)** | $\frac{\text{TotalSales}}{\text{OrdersCount}}$ | Average basket spend per order |
-| **Conversion Rate** | $\frac{\text{Completed Orders}}{\text{Total Product/Store Views}} \times 100\%$ | Storefront conversion efficiency |
-| **Growth Statistics** | $\frac{\text{Current Period} - \text{Previous Period}}{\text{Previous Period}} \times 100\%$ | Period-over-period trajectory (Sales, Orders, Revenue) |
-| **Sales & Revenue Timeline** | Daily continuous bucket of gross sales vs net payout | Visualizes cash flow and sales seasonality |
-| **Top Products** | Grouped by `productId`, sorted by revenue & units | Identifies hero products and inventory replenishment needs |
-| **Customer Activity** | Chronological stream of recent orders and customer names | Real-time merchant fulfillment awareness |
+| Metric                        | Calculation / Source                                                                         | Purpose                                                    |
+| ----------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| **Total Sales**               | $\sum \text{OrderItem.totalPrice}$ for orders not cancelled/refunded                         | Gross customer transaction volume                          |
+| **Net Revenue**               | $\sum \text{OrderItem.vendorPayoutAmount}$                                                   | Net seller earnings after marketplace take-rate commission |
+| **Orders Count**              | $\text{COUNT}(\text{DISTINCT } \text{OrderItem.orderId})$                                    | Total orders placed containing store items                 |
+| **Items Sold**                | $\sum \text{OrderItem.quantity}$                                                             | Total individual SKU units purchased                       |
+| **Average Order Value (AOV)** | $\frac{\text{TotalSales}}{\text{OrdersCount}}$                                               | Average basket spend per order                             |
+| **Conversion Rate**           | $\frac{\text{Completed Orders}}{\text{Total Product/Store Views}} \times 100\%$              | Storefront conversion efficiency                           |
+| **Growth Statistics**         | $\frac{\text{Current Period} - \text{Previous Period}}{\text{Previous Period}} \times 100\%$ | Period-over-period trajectory (Sales, Orders, Revenue)     |
+| **Sales & Revenue Timeline**  | Daily continuous bucket of gross sales vs net payout                                         | Visualizes cash flow and sales seasonality                 |
+| **Top Products**              | Grouped by `productId`, sorted by revenue & units                                            | Identifies hero products and inventory replenishment needs |
+| **Customer Activity**         | Chronological stream of recent orders and customer names                                     | Real-time merchant fulfillment awareness                   |
 
 ### B. Admin Dashboard (`/analytics/admin/dashboard`)
+
 Designed for marketplace administrators to monitor platform health, liquidity, and growth:
 
-| Metric | Calculation / Source | Purpose |
-|---|---|---|
-| **Platform GMV** | $\sum \text{Order.totalAmount}$ across all marketplace stores | Gross Marketplace Volume |
-| **Platform Revenue** | $\sum \text{OrderItem.commissionAmount}$ | Net commissions earned by DokanOS platform |
-| **Take Rate** | $\frac{\text{PlatformRevenue}}{\text{PlatformGMV}} \times 100\%$ | Effective platform monetization rate (~10%) |
-| **Total Users & Breakdown** | $\text{COUNT}(User)$ grouped by role and status | Measures audience acquisition and merchant supply |
-| **Active Sellers** | Verified `SellerProfile` records with active stores | Healthy supplier liquidity |
-| **Transaction Health** | Grouped by `Payment.status` (`COMPLETED`, `PENDING`, `FAILED`, `REFUNDED`) | Gateway settlement reliability |
-| **Gateway Distribution** | Grouped by `Payment.provider` (`STRIPE`, `SSLCOMMERZ`) | Payment processor adoption |
-| **Growth Rates** | Period-over-period % change in GMV, Orders, and Users | Month-over-month marketplace expansion |
-| **Top Merchant Stores** | Stores ranked by GMV, commission paid, and review rating | Merchant relationship management and tiering |
+| Metric                      | Calculation / Source                                                       | Purpose                                           |
+| --------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------- |
+| **Platform GMV**            | $\sum \text{Order.totalAmount}$ across all marketplace stores              | Gross Marketplace Volume                          |
+| **Platform Revenue**        | $\sum \text{OrderItem.commissionAmount}$                                   | Net commissions earned by DokanOS platform        |
+| **Take Rate**               | $\frac{\text{PlatformRevenue}}{\text{PlatformGMV}} \times 100\%$           | Effective platform monetization rate (~10%)       |
+| **Total Users & Breakdown** | $\text{COUNT}(User)$ grouped by role and status                            | Measures audience acquisition and merchant supply |
+| **Active Sellers**          | Verified `SellerProfile` records with active stores                        | Healthy supplier liquidity                        |
+| **Transaction Health**      | Grouped by `Payment.status` (`COMPLETED`, `PENDING`, `FAILED`, `REFUNDED`) | Gateway settlement reliability                    |
+| **Gateway Distribution**    | Grouped by `Payment.provider` (`STRIPE`, `SSLCOMMERZ`)                     | Payment processor adoption                        |
+| **Growth Rates**            | Period-over-period % change in GMV, Orders, and Users                      | Month-over-month marketplace expansion            |
+| **Top Merchant Stores**     | Stores ranked by GMV, commission paid, and review rating                   | Merchant relationship management and tiering      |
 
 ---
 
@@ -163,6 +166,7 @@ model DailyPlatformAnalytics {
 ### Composite Index Optimization
 
 To ensure sub-20ms queries across millions of rows, composite B-Tree indexes were added:
+
 - `order_items`:
   - `@@index([storeId, createdAt])`: Accelerates seller time-range aggregation queries.
   - `@@index([productId, createdAt])`: Accelerates top-product sales ranking.
@@ -225,9 +229,9 @@ Return Cached JSON     Check In-Memory Map
 
 ## 6. Architecture Decisions & Trade-Offs
 
-| Decision | Chosen Approach | Rationale | Alternatives Considered |
-|---|---|---|---|
-| **Aggregations vs Live Queries** | Hybrid (Live Indexed Relational + Snapshot Rollup Tables) | Sub-millisecond performance with full transactional accuracy and zero drift | Heavy OLAP cluster (ClickHouse / Snowflake) was rejected to avoid unnecessary operational overhead at current scale |
-| **Event Tracking Storage** | PostgreSQL Table (`AnalyticsEvent`) | Relational foreign keys with stores and products, zero extra database infrastructure | Kafka / Segment (Overkill for Phase 8 requirements) |
-| **Chart Library** | Recharts 3.x with SSR Client Components | Declarative React SVG rendering, zero canvas complexity, full responsive container support | Chart.js, D3.js (Heavier bundle, less idiomatic in React 19) |
-| **Caching Layer** | Redis + In-Memory Fallback Map | High availability: works seamlessly in single-node dev and distributed multi-replica prod | Pure in-memory cache (Fails to share state across load-balanced API instances) |
+| Decision                         | Chosen Approach                                           | Rationale                                                                                  | Alternatives Considered                                                                                             |
+| -------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| **Aggregations vs Live Queries** | Hybrid (Live Indexed Relational + Snapshot Rollup Tables) | Sub-millisecond performance with full transactional accuracy and zero drift                | Heavy OLAP cluster (ClickHouse / Snowflake) was rejected to avoid unnecessary operational overhead at current scale |
+| **Event Tracking Storage**       | PostgreSQL Table (`AnalyticsEvent`)                       | Relational foreign keys with stores and products, zero extra database infrastructure       | Kafka / Segment (Overkill for Phase 8 requirements)                                                                 |
+| **Chart Library**                | Recharts 3.x with SSR Client Components                   | Declarative React SVG rendering, zero canvas complexity, full responsive container support | Chart.js, D3.js (Heavier bundle, less idiomatic in React 19)                                                        |
+| **Caching Layer**                | Redis + In-Memory Fallback Map                            | High availability: works seamlessly in single-node dev and distributed multi-replica prod  | Pure in-memory cache (Fails to share state across load-balanced API instances)                                      |

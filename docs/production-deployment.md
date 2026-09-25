@@ -2,7 +2,7 @@
 
 > **Status:** Production Reference Specification  
 > **Version:** 1.0.0  
-> **Audience:** DevOps Engineers, Backend Architects, Site Reliability Engineers (SRE), AI Engineers  
+> **Audience:** DevOps Engineers, Backend Architects, Site Reliability Engineers (SRE), AI Engineers
 
 ---
 
@@ -52,6 +52,7 @@ flowchart TB
 ```
 
 ### Architectural Principles:
+
 1. **Network Isolation:** Only the reverse proxy (`Caddy` / `Nginx`) exposes ports `80` and `443` to the host and public internet.
 2. **Private AI Microservice:** The `ai-service` container is **never exposed** to the public internet. It only communicates over the private Docker bridge network (`dokanos_net`) with `api`, verified by `AI_INTERNAL_KEY`.
 3. **Stateless App Containers:** Both `web` and `api` containers are completely stateless, allowing horizontal scaling and seamless rolling updates.
@@ -63,13 +64,14 @@ flowchart TB
 
 All three applications feature production-hardened, multi-stage Dockerfiles utilizing minimal Alpine / Slim base images and non-root system users:
 
-| Container | Base Image | Build Strategy | Exposed Port | Non-Root User | Healthcheck |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **`web`** | `node:22-alpine` | Multi-stage, Next.js Standalone (`output: 'standalone'`) | 3000 | `nextjs` (1001) | `curl -f http://localhost:3000/` |
-| **`api`** | `node:22-alpine` | Multi-stage, pruned production pnpm dependencies | 4000 | `node` (1000) | `curl -f http://localhost:4000/api/v1/health` |
-| **`ai-service`** | `python:3.12-slim` | Multi-stage, pip wheel caching, 2 Uvicorn workers | 8000 | `appuser` (1000) | `curl -f http://localhost:8000/health` |
+| Container        | Base Image         | Build Strategy                                           | Exposed Port | Non-Root User    | Healthcheck                                   |
+| :--------------- | :----------------- | :------------------------------------------------------- | :----------- | :--------------- | :-------------------------------------------- |
+| **`web`**        | `node:22-alpine`   | Multi-stage, Next.js Standalone (`output: 'standalone'`) | 3000         | `nextjs` (1001)  | `curl -f http://localhost:3000/`              |
+| **`api`**        | `node:22-alpine`   | Multi-stage, pruned production pnpm dependencies         | 4000         | `node` (1000)    | `curl -f http://localhost:4000/api/v1/health` |
+| **`ai-service`** | `python:3.12-slim` | Multi-stage, pip wheel caching, 2 Uvicorn workers        | 8000         | `appuser` (1000) | `curl -f http://localhost:8000/health`        |
 
 ### Docker Commands
+
 - **Build production containers locally:**
   ```bash
   docker compose -f docker-compose.prod.yml build
@@ -90,6 +92,7 @@ All three applications feature production-hardened, multi-stage Dockerfiles util
 Continuous Integration and Continuous Deployment are automated across two workflows located in `.github/workflows/`:
 
 ### 1. `ci.yml` (Triggered on Pull Request & Push to `main`/`develop`)
+
 - **`test-and-build-typescript`:**
   - Installs dependencies using `pnpm install --frozen-lockfile`.
   - Generates Prisma client.
@@ -102,6 +105,7 @@ Continuous Integration and Continuous Deployment are automated across two workfl
   - Builds Docker container images with GitHub Actions layer caching to prevent broken image pushes.
 
 ### 2. `deploy.yml` (Automated Production VPS Deployment)
+
 - Authenticates with **GitHub Container Registry** (`ghcr.io`).
 - Builds and publishes multi-architecture images tagged with commit SHA and `:latest`.
 - Connects to VPS via secure SSH key:
@@ -123,17 +127,20 @@ Continuous Integration and Continuous Deployment are automated across two workfl
 ## 4. Production VPS Deployment Guide
 
 ### Provisioning Ubuntu VPS (Hetzner / DigitalOcean / AWS EC2)
+
 1. **Clone repository onto VPS:**
    ```bash
    git clone https://github.com/shahariarshawon/DokanOS.git /opt/dokanos
    cd /opt/dokanos
    ```
 2. **Run the automated provisioning script:**
+
    ```bash
    chmod +x scripts/setup-vps.sh
    ./scripts/setup-vps.sh
    ```
-   *This automatically enables UFW firewall (allowing only ports 22, 80, 443), configures Fail2ban, installs Docker Engine & Docker Compose plugin, and sets up Docker daemon log rotation.*
+
+   _This automatically enables UFW firewall (allowing only ports 22, 80, 443), configures Fail2ban, installs Docker Engine & Docker Compose plugin, and sets up Docker daemon log rotation._
 
 3. **Configure Production Environment Files:**
    - Copy `.env.production.example` to `apps/api/.env` and `apps/ai-service/.env`.
@@ -149,6 +156,7 @@ Continuous Integration and Continuous Deployment are automated across two workfl
 ## 5. Database Migration Management
 
 ### Migration Safety Rules in Production
+
 1. **Never run `prisma migrate dev` in production.** Always use:
    ```bash
    npx prisma migrate deploy
@@ -167,11 +175,15 @@ Continuous Integration and Continuous Deployment are automated across two workfl
 ## 6. Logging & Error Monitoring Architecture
 
 ### 1. Request Correlation Tracing (`X-Request-Id`)
+
 Every incoming HTTP request through `LoggingMiddleware` receives or propagates an `X-Request-Id` UUID:
+
 ```text
 Client -> Caddy -> NestJS [X-Request-Id: 4d34b588-...] -> FastAPI [X-Request-Id: 4d34b588-...]
 ```
+
 If an error occurs anywhere in the stack, the correlation ID is returned in the API error envelope:
+
 ```json
 {
   "success": false,
@@ -187,13 +199,15 @@ If an error occurs anywhere in the stack, the correlation ID is returned in the 
 ```
 
 ### 2. Docker Log Rotation
+
 Docker containers are configured with `json-file` log drivers to prevent disk exhaustion:
+
 ```yaml
 logging:
-  driver: "json-file"
+  driver: 'json-file'
   options:
-    max-size: "20m"
-    max-file: "5"
+    max-size: '20m'
+    max-file: '5'
 ```
 
 ---

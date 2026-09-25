@@ -21,7 +21,9 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 
-  @ApiOperation({ summary: 'Get current user cart with live stock status and subtotal' })
+  @ApiOperation({
+    summary: 'Get current user cart with live stock status and subtotal',
+  })
   @Get()
   async getCart(@CurrentUser('id') userId: string) {
     return this.cartService.getOrCreateCart(userId);

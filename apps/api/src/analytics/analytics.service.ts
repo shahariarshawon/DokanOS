@@ -4,7 +4,13 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { AnalyticsEventType, OrderStatus, PaymentStatus, Prisma, UserRole } from '@prisma/client';
+import {
+  AnalyticsEventType,
+  OrderStatus,
+  PaymentStatus,
+  Prisma,
+  UserRole,
+} from '@prisma/client';
 import { PrismaService } from '../database/prisma.service.js';
 import { RedisService } from '../common/redis/redis.service.js';
 import { TrackEventDto } from './dto/track-event.dto.js';
@@ -34,7 +40,10 @@ interface DateRangeBounds {
 @Injectable()
 export class AnalyticsService {
   private readonly logger = new Logger(AnalyticsService.name);
-  private readonly memoryCache = new Map<string, { data: any; expiry: number }>();
+  private readonly memoryCache = new Map<
+    string,
+    { data: any; expiry: number }
+  >();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -95,7 +104,9 @@ export class AnalyticsService {
       });
 
       if (!sellerProfile || sellerProfile.stores.length === 0) {
-        throw new NotFoundException('No active store found for this seller account');
+        throw new NotFoundException(
+          'No active store found for this seller account',
+        );
       }
       targetStoreId = sellerProfile.stores[0].id;
     } else if (role !== UserRole.ADMIN) {
@@ -105,7 +116,9 @@ export class AnalyticsService {
         include: { sellerProfile: true },
       });
       if (!store || store.sellerProfile.userId !== userId) {
-        throw new ForbiddenException('You do not have access to this store analytics');
+        throw new ForbiddenException(
+          'You do not have access to this store analytics',
+        );
       }
     }
 
@@ -114,7 +127,11 @@ export class AnalyticsService {
       select: { id: true, name: true },
     });
 
-    const bounds = this.resolveDateRange(query.range, query.startDate, query.endDate);
+    const bounds = this.resolveDateRange(
+      query.range,
+      query.startDate,
+      query.endDate,
+    );
     const cacheKey = `analytics:seller:${targetStoreId}:${bounds.timeRangeKey}:${bounds.currentStart.toISOString().split('T')[0]}_${bounds.currentEnd.toISOString().split('T')[0]}`;
 
     // 2. Check cache (unless refresh forced)
@@ -130,7 +147,9 @@ export class AnalyticsService {
       where: {
         storeId: targetStoreId,
         createdAt: { gte: bounds.currentStart, lte: bounds.currentEnd },
-        order: { status: { notIn: [OrderStatus.CANCELLED, OrderStatus.REFUNDED] } },
+        order: {
+          status: { notIn: [OrderStatus.CANCELLED, OrderStatus.REFUNDED] },
+        },
       },
       select: {
         orderId: true,
@@ -149,7 +168,9 @@ export class AnalyticsService {
       where: {
         storeId: targetStoreId,
         createdAt: { gte: bounds.prevStart, lte: bounds.prevEnd },
-        order: { status: { notIn: [OrderStatus.CANCELLED, OrderStatus.REFUNDED] } },
+        order: {
+          status: { notIn: [OrderStatus.CANCELLED, OrderStatus.REFUNDED] },
+        },
       },
       select: {
         totalPrice: true,
@@ -162,7 +183,13 @@ export class AnalyticsService {
     const viewsCountPromise = this.prisma.analyticsEvent.count({
       where: {
         storeId: targetStoreId,
-        eventType: { in: [AnalyticsEventType.PAGE_VIEW, AnalyticsEventType.PRODUCT_VIEW, AnalyticsEventType.STORE_VIEW] },
+        eventType: {
+          in: [
+            AnalyticsEventType.PAGE_VIEW,
+            AnalyticsEventType.PRODUCT_VIEW,
+            AnalyticsEventType.STORE_VIEW,
+          ],
+        },
         createdAt: { gte: bounds.currentStart, lte: bounds.currentEnd },
       },
     });
@@ -205,7 +232,10 @@ export class AnalyticsService {
     let netRevenue = 0;
     let itemsSold = 0;
     const distinctOrderIds = new Set<string>();
-    const productStats = new Map<string, { title: string; sku: string | null; units: number; rev: number }>();
+    const productStats = new Map<
+      string,
+      { title: string; sku: string | null; units: number; rev: number }
+    >();
 
     for (const item of currentItems) {
       const price = Number(item.totalPrice);
@@ -230,7 +260,12 @@ export class AnalyticsService {
 
     const ordersCount = distinctOrderIds.size;
     const aov = ordersCount > 0 ? totalSales / ordersCount : 0;
-    const conversionRate = totalViews > 0 ? (ordersCount / totalViews) * 100 : (ordersCount > 0 ? 3.2 : 0);
+    const conversionRate =
+      totalViews > 0
+        ? (ordersCount / totalViews) * 100
+        : ordersCount > 0
+          ? 3.2
+          : 0;
 
     // 5. Growth calculations
     let prevSales = 0;
@@ -248,24 +283,33 @@ export class AnalyticsService {
     const ordersGrowthPct = this.calculateGrowth(ordersCount, prevOrdersCount);
 
     // 6. Build continuous daily timeline
-    const timeline = this.buildDailyTimeline(currentItems, bounds.currentStart, bounds.currentEnd);
+    const timeline = this.buildDailyTimeline(
+      currentItems,
+      bounds.currentStart,
+      bounds.currentEnd,
+    );
 
     // 7. Top products lookup
     const topProductIds = Array.from(productStats.entries())
       .sort((a, b) => b[1].rev - a[1].rev)
       .slice(0, 5);
 
-    const productDetails = topProductIds.length > 0
-      ? await this.prisma.product.findMany({
-          where: { id: { in: topProductIds.map(([id]) => id) } },
-          select: {
-            id: true,
-            stockQuantity: true,
-            rating: true,
-            images: { where: { isPrimary: true }, take: 1, select: { url: true } },
-          },
-        })
-      : [];
+    const productDetails =
+      topProductIds.length > 0
+        ? await this.prisma.product.findMany({
+            where: { id: { in: topProductIds.map(([id]) => id) } },
+            select: {
+              id: true,
+              stockQuantity: true,
+              rating: true,
+              images: {
+                where: { isPrimary: true },
+                take: 1,
+                select: { url: true },
+              },
+            },
+          })
+        : [];
 
     const productDetailsMap = new Map(productDetails.map((p) => [p.id, p]));
 
@@ -285,11 +329,15 @@ export class AnalyticsService {
 
     // 8. Recent Customer Activity format
     const recentActivity: CustomerActivityItem[] = recentOrders.map((o) => {
-      const storeTotal = o.items.reduce((acc, cur) => acc + Number(cur.totalPrice), 0);
+      const storeTotal = o.items.reduce(
+        (acc, cur) => acc + Number(cur.totalPrice),
+        0,
+      );
       return {
         id: o.id,
         type: 'ORDER',
-        customerName: `${o.user.firstName} ${o.user.lastName}`.trim() || 'Guest Customer',
+        customerName:
+          `${o.user.firstName} ${o.user.lastName}`.trim() || 'Guest Customer',
         customerEmail: o.user.email,
         amount: Math.round(storeTotal * 100) / 100,
         status: o.status,
@@ -335,8 +383,14 @@ export class AnalyticsService {
   // ADMIN DASHBOARD ANALYTICS
   // -------------------------------------------------------------
 
-  async getAdminDashboard(query: AdminAnalyticsQueryDto): Promise<AdminDashboardResult> {
-    const bounds = this.resolveDateRange(query.range, query.startDate, query.endDate);
+  async getAdminDashboard(
+    query: AdminAnalyticsQueryDto,
+  ): Promise<AdminDashboardResult> {
+    const bounds = this.resolveDateRange(
+      query.range,
+      query.startDate,
+      query.endDate,
+    );
     const cacheKey = `analytics:admin:${bounds.timeRangeKey}:${bounds.currentStart.toISOString().split('T')[0]}_${bounds.currentEnd.toISOString().split('T')[0]}`;
 
     if (!query.refresh) {
@@ -373,7 +427,9 @@ export class AnalyticsService {
     const currentOrderItemsPromise = this.prisma.orderItem.findMany({
       where: {
         createdAt: { gte: bounds.currentStart, lte: bounds.currentEnd },
-        order: { status: { notIn: [OrderStatus.CANCELLED, OrderStatus.REFUNDED] } },
+        order: {
+          status: { notIn: [OrderStatus.CANCELLED, OrderStatus.REFUNDED] },
+        },
       },
       select: {
         storeId: true,
@@ -397,7 +453,9 @@ export class AnalyticsService {
       where: { createdAt: { gte: bounds.prevStart, lte: bounds.prevEnd } },
     });
     const currentNewUsersPromise = this.prisma.user.findMany({
-      where: { createdAt: { gte: bounds.currentStart, lte: bounds.currentEnd } },
+      where: {
+        createdAt: { gte: bounds.currentStart, lte: bounds.currentEnd },
+      },
       select: { createdAt: true },
     });
 
@@ -462,7 +520,10 @@ export class AnalyticsService {
 
     let platformCommission = 0;
     let itemsSold = 0;
-    const storeRevenues = new Map<string, { gmv: number; commission: number; orders: Set<string> }>();
+    const storeRevenues = new Map<
+      string,
+      { gmv: number; commission: number; orders: Set<string> }
+    >();
 
     for (const item of currentOrderItems) {
       const rev = Number(item.totalPrice);
@@ -470,13 +531,18 @@ export class AnalyticsService {
       platformCommission += comm;
       itemsSold += item.quantity;
 
-      const storeAgg = storeRevenues.get(item.storeId) || { gmv: 0, commission: 0, orders: new Set() };
+      const storeAgg = storeRevenues.get(item.storeId) || {
+        gmv: 0,
+        commission: 0,
+        orders: new Set(),
+      };
       storeAgg.gmv += rev;
       storeAgg.commission += comm;
       storeRevenues.set(item.storeId, storeAgg);
     }
 
-    const avgCommissionRate = platformGmv > 0 ? (platformCommission / platformGmv) * 100 : 10.0;
+    const avgCommissionRate =
+      platformGmv > 0 ? (platformCommission / platformGmv) * 100 : 10.0;
 
     // Growth rates
     let prevGmv = 0;
@@ -485,8 +551,14 @@ export class AnalyticsService {
     }
 
     const gmvGrowthPct = this.calculateGrowth(platformGmv, prevGmv);
-    const ordersGrowthPct = this.calculateGrowth(currentOrders.length, prevOrders.length);
-    const userGrowthPct = this.calculateGrowth(currentNewUsers.length, prevNewUsersCount);
+    const ordersGrowthPct = this.calculateGrowth(
+      currentOrders.length,
+      prevOrders.length,
+    );
+    const userGrowthPct = this.calculateGrowth(
+      currentNewUsers.length,
+      prevNewUsersCount,
+    );
 
     // Transaction breakdown
     const txBreakdown = { completed: 0, pending: 0, failed: 0, refunded: 0 };
@@ -520,12 +592,13 @@ export class AnalyticsService {
       .sort((a, b) => b[1].gmv - a[1].gmv)
       .slice(0, 5);
 
-    const storeDetails = topStoresEntries.length > 0
-      ? await this.prisma.store.findMany({
-          where: { id: { in: topStoresEntries.map(([id]) => id) } },
-          include: { sellerProfile: { select: { businessName: true } } },
-        })
-      : [];
+    const storeDetails =
+      topStoresEntries.length > 0
+        ? await this.prisma.store.findMany({
+            where: { id: { in: topStoresEntries.map(([id]) => id) } },
+            include: { sellerProfile: { select: { businessName: true } } },
+          })
+        : [];
 
     const storeDetailsMap = new Map(storeDetails.map((s) => [s.id, s]));
 
@@ -645,7 +718,10 @@ export class AnalyticsService {
     start: Date,
     end: Date,
   ): TimelineDataPoint[] {
-    const dailyMap = new Map<string, { sales: number; revenue: number; orders: number }>();
+    const dailyMap = new Map<
+      string,
+      { sales: number; revenue: number; orders: number }
+    >();
 
     // Pre-populate all dates between start and end
     const curr = new Date(start);
@@ -657,7 +733,11 @@ export class AnalyticsService {
 
     for (const item of items) {
       const dateKey = item.createdAt.toISOString().split('T')[0];
-      const entry = dailyMap.get(dateKey) || { sales: 0, revenue: 0, orders: 0 };
+      const entry = dailyMap.get(dateKey) || {
+        sales: 0,
+        revenue: 0,
+        orders: 0,
+      };
       entry.sales += Number(item.totalPrice);
       entry.revenue += Number(item.vendorPayoutAmount);
       entry.orders += 1;
@@ -680,7 +760,10 @@ export class AnalyticsService {
     start: Date,
     end: Date,
   ): AdminTimelineDataPoint[] {
-    const dailyMap = new Map<string, { gmv: number; comm: number; orders: number; users: number }>();
+    const dailyMap = new Map<
+      string,
+      { gmv: number; comm: number; orders: number; users: number }
+    >();
 
     const curr = new Date(start);
     while (curr <= end) {
@@ -691,7 +774,12 @@ export class AnalyticsService {
 
     for (const o of orders) {
       const dateKey = o.placedAt.toISOString().split('T')[0];
-      const entry = dailyMap.get(dateKey) || { gmv: 0, comm: 0, orders: 0, users: 0 };
+      const entry = dailyMap.get(dateKey) || {
+        gmv: 0,
+        comm: 0,
+        orders: 0,
+        users: 0,
+      };
       entry.gmv += Number(o.totalAmount);
       entry.orders += 1;
       dailyMap.set(dateKey, entry);
@@ -699,14 +787,24 @@ export class AnalyticsService {
 
     for (const it of items) {
       const dateKey = it.createdAt.toISOString().split('T')[0];
-      const entry = dailyMap.get(dateKey) || { gmv: 0, comm: 0, orders: 0, users: 0 };
+      const entry = dailyMap.get(dateKey) || {
+        gmv: 0,
+        comm: 0,
+        orders: 0,
+        users: 0,
+      };
       entry.comm += Number(it.commissionAmount);
       dailyMap.set(dateKey, entry);
     }
 
     for (const u of newUsers) {
       const dateKey = u.createdAt.toISOString().split('T')[0];
-      const entry = dailyMap.get(dateKey) || { gmv: 0, comm: 0, orders: 0, users: 0 };
+      const entry = dailyMap.get(dateKey) || {
+        gmv: 0,
+        comm: 0,
+        orders: 0,
+        users: 0,
+      };
       entry.users += 1;
       dailyMap.set(dateKey, entry);
     }
@@ -741,10 +839,16 @@ export class AnalyticsService {
     return null;
   }
 
-  private async setCache(key: string, data: any, ttlSeconds: number): Promise<void> {
+  private async setCache(
+    key: string,
+    data: any,
+    ttlSeconds: number,
+  ): Promise<void> {
     try {
       if (this.redisService.isReady()) {
-        await this.redisService.getClient().set(key, JSON.stringify(data), 'EX', ttlSeconds);
+        await this.redisService
+          .getClient()
+          .set(key, JSON.stringify(data), 'EX', ttlSeconds);
       }
     } catch {
       // ignore

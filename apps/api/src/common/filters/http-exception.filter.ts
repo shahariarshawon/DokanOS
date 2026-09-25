@@ -36,9 +36,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
       if (typeof exceptionResponse === 'string') {
         message = exceptionResponse;
         errorCode = exception.name;
-      } else if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
+      } else if (
+        typeof exceptionResponse === 'object' &&
+        exceptionResponse !== null
+      ) {
         const payload = exceptionResponse as ErrorResponsePayload;
-        
+
         // Handle class-validator error array
         if (Array.isArray(payload.message)) {
           errorCode = 'VALIDATION_FAILED';
@@ -54,7 +57,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
       message = exception.message;
     }
 
-    const correlationId = (request.headers['x-request-id'] as string) || (response.getHeader('x-request-id') as string);
+    const correlationId =
+      (request.headers['x-request-id'] as string) ||
+      (response.getHeader('x-request-id') as string);
 
     if (status >= 500) {
       this.logger.error(
@@ -62,7 +67,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
         exception instanceof Error ? exception.stack : undefined,
       );
     } else {
-      this.logger.warn(`Client Error [${correlationId}] on ${request.method} ${request.url} (${status}): ${message}`);
+      this.logger.warn(
+        `Client Error [${correlationId}] on ${request.method} ${request.url} (${status}): ${message}`,
+      );
     }
 
     response.status(status).json({

@@ -9,7 +9,10 @@ import { PrismaService } from '../database/prisma.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { CreateConversationDto } from './dto/create-conversation.dto.js';
 import { SendMessageDto } from './dto/send-message.dto.js';
-import { QueryConversationsDto, QueryMessagesDto } from './dto/query-chat.dto.js';
+import {
+  QueryConversationsDto,
+  QueryMessagesDto,
+} from './dto/query-chat.dto.js';
 import { NotificationType, Prisma } from '@prisma/client';
 
 export interface EnrichedConversation {
@@ -103,7 +106,9 @@ export class ChatService {
     });
 
     if (!conversation) {
-      throw new NotFoundException(`Conversation with ID ${conversationId} not found`);
+      throw new NotFoundException(
+        `Conversation with ID ${conversationId} not found`,
+      );
     }
 
     const isCustomer = conversation.customerId === userId;
@@ -117,11 +122,15 @@ export class ChatService {
       });
 
       if (user?.role !== 'ADMIN') {
-        throw new ForbiddenException('You do not have permission to access this conversation');
+        throw new ForbiddenException(
+          'You do not have permission to access this conversation',
+        );
       }
     }
 
-    const recipientId = isCustomer ? conversation.store.sellerProfile.userId : conversation.customerId;
+    const recipientId = isCustomer
+      ? conversation.store.sellerProfile.userId
+      : conversation.customerId;
 
     return {
       conversation: { ...conversation, unreadCount: 0 },
@@ -151,7 +160,9 @@ export class ChatService {
     }
 
     if (store.sellerProfile.userId === userId) {
-      throw new BadRequestException('You cannot initiate a conversation with your own store');
+      throw new BadRequestException(
+        'You cannot initiate a conversation with your own store',
+      );
     }
 
     if (dto.orderId) {
@@ -165,7 +176,9 @@ export class ChatService {
       }
 
       if (order.userId !== userId) {
-        throw new ForbiddenException('You can only attach orders that belong to your account');
+        throw new ForbiddenException(
+          'You can only attach orders that belong to your account',
+        );
       }
     }
 
@@ -282,7 +295,10 @@ export class ChatService {
   async getUserConversations(
     userId: string,
     query: QueryConversationsDto,
-  ): Promise<{ data: EnrichedConversation[]; meta: { total: number; page: number; limit: number } }> {
+  ): Promise<{
+    data: EnrichedConversation[];
+    meta: { total: number; page: number; limit: number };
+  }> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
@@ -445,14 +461,19 @@ export class ChatService {
     message: unknown;
     recipientId: string;
   }> {
-    const { recipientId } = await this.verifyConversationParticipant(senderId, conversationId);
+    const { recipientId } = await this.verifyConversationParticipant(
+      senderId,
+      conversationId,
+    );
 
     const message = await this.prisma.message.create({
       data: {
         conversationId,
         senderId,
         content: dto.content,
-        attachments: dto.attachments ? (dto.attachments as Prisma.InputJsonValue) : Prisma.JsonNull,
+        attachments: dto.attachments
+          ? (dto.attachments as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
       },
       include: {
         sender: {
@@ -474,9 +495,12 @@ export class ChatService {
     });
 
     // Dispatch background notification to recipient
-    const senderName = `${message.sender.firstName} ${message.sender.lastName}`.trim();
+    const senderName =
+      `${message.sender.firstName} ${message.sender.lastName}`.trim();
     const truncatedBody =
-      dto.content.length > 80 ? `${dto.content.substring(0, 77)}...` : dto.content;
+      dto.content.length > 80
+        ? `${dto.content.substring(0, 77)}...`
+        : dto.content;
 
     this.notificationsService
       .createAndDispatch({
@@ -491,7 +515,9 @@ export class ChatService {
         },
       })
       .catch((err) => {
-        this.logger.warn(`Failed to dispatch chat notification: ${err.message}`);
+        this.logger.warn(
+          `Failed to dispatch chat notification: ${err.message}`,
+        );
       });
 
     return { message, recipientId };

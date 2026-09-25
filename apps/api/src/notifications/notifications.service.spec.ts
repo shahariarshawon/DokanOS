@@ -56,9 +56,15 @@ describe('NotificationsService', () => {
         payload: { orderId: 'ord-1' },
       });
 
-      expect(prismaMock.user.findUnique).toHaveBeenCalledWith({ where: { id: 'user-123' }, select: { id: true } });
+      expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
+        where: { id: 'user-123' },
+        select: { id: true },
+      });
       expect(prismaMock.notification.create).toHaveBeenCalled();
-      expect(gatewayMock.emitNotificationToUser).toHaveBeenCalledWith('user-123', mockNotification);
+      expect(gatewayMock.emitNotificationToUser).toHaveBeenCalledWith(
+        'user-123',
+        mockNotification,
+      );
       expect(result).toEqual(mockNotification);
     });
   });
@@ -70,7 +76,10 @@ describe('NotificationsService', () => {
       prismaMock.notification.count.mockResolvedValueOnce(1); // total
       prismaMock.notification.count.mockResolvedValueOnce(1); // unread
 
-      const result = await service.getUserNotifications('user-123', { page: 1, limit: 10 });
+      const result = await service.getUserNotifications('user-123', {
+        page: 1,
+        limit: 10,
+      });
 
       expect(result.data).toEqual(mockNotifications);
       expect(result.meta.total).toBe(1);
@@ -82,8 +91,15 @@ describe('NotificationsService', () => {
 
   describe('markAsRead', () => {
     it('should mark single notification as read', async () => {
-      prismaMock.notification.findFirst.mockResolvedValue({ id: 'notif-1', userId: 'user-123' });
-      prismaMock.notification.update.mockResolvedValue({ id: 'notif-1', isRead: true, readAt: new Date() });
+      prismaMock.notification.findFirst.mockResolvedValue({
+        id: 'notif-1',
+        userId: 'user-123',
+      });
+      prismaMock.notification.update.mockResolvedValue({
+        id: 'notif-1',
+        isRead: true,
+        readAt: new Date(),
+      });
 
       const result = await service.markAsRead('user-123', 'notif-1');
 

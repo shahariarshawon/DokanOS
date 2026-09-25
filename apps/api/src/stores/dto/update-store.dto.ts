@@ -13,12 +13,16 @@ export class UpdateStoreDto {
   @IsOptional()
   description?: string;
 
-  @ApiPropertyOptional({ example: 'https://cdn.dokanos.com/stores/gadget-hub/logo-new.webp' })
+  @ApiPropertyOptional({
+    example: 'https://cdn.dokanos.com/stores/gadget-hub/logo-new.webp',
+  })
   @IsString()
   @IsOptional()
   logoUrl?: string;
 
-  @ApiPropertyOptional({ example: 'https://cdn.dokanos.com/stores/gadget-hub/banner-new.webp' })
+  @ApiPropertyOptional({
+    example: 'https://cdn.dokanos.com/stores/gadget-hub/banner-new.webp',
+  })
   @IsString()
   @IsOptional()
   bannerUrl?: string;

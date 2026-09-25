@@ -64,7 +64,8 @@ export class CartService {
       totalItems += item.quantity;
 
       const inStock =
-        item.product.status === 'ACTIVE' && item.product.stockQuantity >= item.quantity;
+        item.product.status === 'ACTIVE' &&
+        item.product.stockQuantity >= item.quantity;
 
       return {
         id: item.id,
@@ -98,11 +99,15 @@ export class CartService {
     });
 
     if (!product || product.status === 'ARCHIVED') {
-      throw new NotFoundException(`Product with ID '${dto.productId}' not found`);
+      throw new NotFoundException(
+        `Product with ID '${dto.productId}' not found`,
+      );
     }
 
     if (product.status !== 'ACTIVE') {
-      throw new BadRequestException(`Product '${product.title}' is currently not available for purchase`);
+      throw new BadRequestException(
+        `Product '${product.title}' is currently not available for purchase`,
+      );
     }
 
     const cart = await this.getOrCreateCart(userId);
@@ -136,7 +141,8 @@ export class CartService {
         cartId: cart.id,
         productId: dto.productId,
         quantity: dto.quantity,
-        selectedAttributes: (dto.selectedAttributes ?? {}) as Prisma.InputJsonValue,
+        selectedAttributes: (dto.selectedAttributes ??
+          {}) as Prisma.InputJsonValue,
       },
       update: {
         quantity: newQuantity,
@@ -158,7 +164,9 @@ export class CartService {
     });
 
     if (!item) {
-      throw new NotFoundException(`Cart item '${itemId}' not found in user cart`);
+      throw new NotFoundException(
+        `Cart item '${itemId}' not found in user cart`,
+      );
     }
 
     if (quantity <= 0) {

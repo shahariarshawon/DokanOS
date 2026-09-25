@@ -48,7 +48,10 @@ export class AuthService {
       throw new UnauthorizedException('Your account has been suspended');
     }
 
-    const isPasswordValid = await bcrypt.compare(loginDto.password, user.passwordHash);
+    const isPasswordValid = await bcrypt.compare(
+      loginDto.password,
+      user.passwordHash,
+    );
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email or password');
     }
@@ -65,9 +68,12 @@ export class AuthService {
     let payload: { sub: string; email: string; role: string };
 
     try {
-      payload = await this.jwtService.verifyAsync(refreshTokenDto.refreshToken, {
-        secret: refreshSecret,
-      });
+      payload = await this.jwtService.verifyAsync(
+        refreshTokenDto.refreshToken,
+        {
+          secret: refreshSecret,
+        },
+      );
     } catch {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
@@ -101,8 +107,14 @@ export class AuthService {
 
     const accessSecret = this.configService.get<string>('JWT_ACCESS_SECRET');
     const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET');
-    const accessExpiresIn = this.configService.get<string>('JWT_ACCESS_EXPIRES_IN', '15m');
-    const refreshExpiresIn = this.configService.get<string>('JWT_REFRESH_EXPIRES_IN', '7d');
+    const accessExpiresIn = this.configService.get<string>(
+      'JWT_ACCESS_EXPIRES_IN',
+      '15m',
+    );
+    const refreshExpiresIn = this.configService.get<string>(
+      'JWT_REFRESH_EXPIRES_IN',
+      '7d',
+    );
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
@@ -122,7 +134,10 @@ export class AuthService {
     };
   }
 
-  private async updateRefreshToken(userId: string, refreshToken: string): Promise<void> {
+  private async updateRefreshToken(
+    userId: string,
+    refreshToken: string,
+  ): Promise<void> {
     const salt = await bcrypt.genSalt(10);
     const refreshTokenHash = await bcrypt.hash(refreshToken, salt);
     await this.usersService.setRefreshTokenHash(userId, refreshTokenHash);

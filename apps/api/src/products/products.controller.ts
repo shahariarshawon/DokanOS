@@ -52,13 +52,18 @@ export class ProductsController {
   }
 
   @Public()
-  @ApiOperation({ summary: 'Get AI content-based recommendations for a product' })
+  @ApiOperation({
+    summary: 'Get AI content-based recommendations for a product',
+  })
   @Get(':idOrSlug/recommendations')
   async getRecommendations(
     @Param('idOrSlug') idOrSlug: string,
     @Query('limit') limit?: number,
   ) {
-    return this.productsService.getRecommendations(idOrSlug, limit ? Number(limit) : 6);
+    return this.productsService.getRecommendations(
+      idOrSlug,
+      limit ? Number(limit) : 6,
+    );
   }
 
   @ApiBearerAuth()

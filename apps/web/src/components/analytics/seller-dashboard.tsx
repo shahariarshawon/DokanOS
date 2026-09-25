@@ -13,7 +13,6 @@ import {
   Star,
   Clock,
   CheckCircle2,
-  AlertCircle,
 } from 'lucide-react';
 import { SellerDashboardResult } from '@/lib/analytics-api';
 import { RevenueAreaChart, OrdersTrafficBarChart } from './chart-components';
@@ -26,19 +25,27 @@ export function SellerDashboardView({ data }: SellerDashboardViewProps) {
   const { metrics, growth, timeline, topProducts, recentActivity } = data;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" data-testid="seller-dashboard">
       {/* 1. TOP STATS ROW */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Gross Sales */}
-        <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-5 shadow-lg backdrop-blur relative overflow-hidden">
+        <div
+          data-testid="metric-total-sales"
+          className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-5 shadow-lg backdrop-blur relative overflow-hidden"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Total Sales</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              Total Sales
+            </span>
             <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
               <DollarSign className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl sm:text-3xl font-bold tracking-tight text-white font-mono">
+            <span
+              data-testid="metric-total-sales-value"
+              className="text-2xl sm:text-3xl font-bold tracking-tight text-white font-mono"
+            >
               ${metrics.totalSales.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </span>
             <GrowthBadge pct={growth.salesGrowthPct} />
@@ -47,9 +54,14 @@ export function SellerDashboardView({ data }: SellerDashboardViewProps) {
         </div>
 
         {/* Card 2: Net Revenue */}
-        <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-5 shadow-lg backdrop-blur relative overflow-hidden">
+        <div
+          data-testid="metric-net-revenue"
+          className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-5 shadow-lg backdrop-blur relative overflow-hidden"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Net Revenue</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              Net Revenue
+            </span>
             <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg">
               <TrendingUp className="w-5 h-5" />
             </div>
@@ -64,9 +76,14 @@ export function SellerDashboardView({ data }: SellerDashboardViewProps) {
         </div>
 
         {/* Card 3: Orders & AOV */}
-        <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-5 shadow-lg backdrop-blur relative overflow-hidden">
+        <div
+          data-testid="metric-orders-count"
+          className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-5 shadow-lg backdrop-blur relative overflow-hidden"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Orders & Items</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              Orders & Items
+            </span>
             <div className="p-2 bg-blue-500/10 text-blue-400 rounded-lg">
               <ShoppingBag className="w-5 h-5" />
             </div>
@@ -78,15 +95,27 @@ export function SellerDashboardView({ data }: SellerDashboardViewProps) {
             <GrowthBadge pct={growth.ordersGrowthPct} />
           </div>
           <div className="flex items-center justify-between text-xs text-zinc-400 mt-2">
-            <span>AOV: <strong className="text-zinc-200 font-mono">${metrics.averageOrderValue.toFixed(2)}</strong></span>
-            <span>Items: <strong className="text-zinc-200 font-mono">{metrics.itemsSoldCount}</strong></span>
+            <span>
+              AOV:{' '}
+              <strong className="text-zinc-200 font-mono">
+                ${metrics.averageOrderValue.toFixed(2)}
+              </strong>
+            </span>
+            <span>
+              Items: <strong className="text-zinc-200 font-mono">{metrics.itemsSoldCount}</strong>
+            </span>
           </div>
         </div>
 
         {/* Card 4: Conversion Rate & Traffic */}
-        <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-5 shadow-lg backdrop-blur relative overflow-hidden">
+        <div
+          data-testid="metric-conversion-rate"
+          className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-5 shadow-lg backdrop-blur relative overflow-hidden"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Conversion Rate</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              Conversion Rate
+            </span>
             <div className="p-2 bg-amber-500/10 text-amber-400 rounded-lg">
               <Percent className="w-5 h-5" />
             </div>
@@ -120,7 +149,8 @@ export function SellerDashboardView({ data }: SellerDashboardViewProps) {
                 <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block" /> Gross Sales
               </span>
               <span className="flex items-center gap-1.5 text-zinc-300">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" /> Net Revenue
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" /> Net
+                Revenue
               </span>
             </div>
           </div>
@@ -146,7 +176,9 @@ export function SellerDashboardView({ data }: SellerDashboardViewProps) {
               <h3 className="text-base font-semibold text-white">Top Performing Products</h3>
               <p className="text-xs text-zinc-400">Ranked by revenue contribution and units sold</p>
             </div>
-            <span className="text-xs text-indigo-400 font-medium">Top {topProducts.length} Items</span>
+            <span className="text-xs text-indigo-400 font-medium">
+              Top {topProducts.length} Items
+            </span>
           </div>
 
           <div className="overflow-x-auto">
@@ -170,7 +202,9 @@ export function SellerDashboardView({ data }: SellerDashboardViewProps) {
                         </div>
                         <div className="truncate max-w-[220px]">
                           <p className="font-medium text-white truncate">{p.title}</p>
-                          <p className="text-[11px] text-zinc-500 font-mono">{p.sku || `SKU-0${idx + 1}`}</p>
+                          <p className="text-[11px] text-zinc-500 font-mono">
+                            {p.sku || `SKU-0${idx + 1}`}
+                          </p>
                         </div>
                       </div>
                     </td>

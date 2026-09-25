@@ -1,17 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import {
-  BarChart3,
-  Bot,
-  Store,
-  Building2,
-  Sparkles,
-  ArrowRight,
-  TrendingUp,
-  Cpu,
-  Layers,
-  CheckCircle2,
-} from 'lucide-react';
+import { BarChart3, Bot, Store, Building2, Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -24,17 +13,32 @@ export default function Home() {
           </div>
           <span className="font-bold text-lg tracking-tight text-white">DokanOS</span>
           <span className="hidden sm:inline-block text-[11px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 font-mono">
-            Phase 8 • Production
+            Phase 9 • Quality Engineering
           </span>
         </div>
 
-        <nav className="flex items-center gap-3 text-xs">
+        <nav className="flex items-center gap-2 sm:gap-3 text-xs">
           <Link
-            href="/dashboard"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-all shadow-md shadow-indigo-600/30"
+            id="nav-products"
+            href="/products"
+            className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white transition-colors"
           >
-            <BarChart3 className="w-4 h-4" />
-            Launch Analytics
+            Catalog
+          </Link>
+          <Link
+            id="nav-login"
+            href="/login"
+            className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white transition-colors"
+          >
+            Sign In
+          </Link>
+          <Link
+            id="nav-dashboard"
+            href="/dashboard"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-all shadow-md shadow-indigo-600/30"
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span>Seller BI</span>
           </Link>
         </nav>
       </header>
@@ -54,7 +58,9 @@ export default function Home() {
         </h1>
 
         <p className="max-w-2xl text-base sm:text-lg text-zinc-400 leading-relaxed">
-          Engineered for modern commerce scale. Powered by a high-throughput NestJS core, independent FastAPI pgvector AI service, and real-time business intelligence for sellers and platform operators.
+          Engineered for modern commerce scale. Powered by a high-throughput NestJS core,
+          independent FastAPI pgvector AI service, and real-time business intelligence for sellers
+          and platform operators.
         </p>
 
         {/* Primary Action Buttons */}
@@ -86,7 +92,8 @@ export default function Home() {
             </div>
             <h3 className="text-base font-semibold text-white mb-2">Seller BI Dashboard</h3>
             <p className="text-xs text-zinc-400 leading-relaxed mb-4">
-              Real-time sales tracking, net merchant revenue, conversion rates, product leaderboards, and continuous shopper activity feeds.
+              Real-time sales tracking, net merchant revenue, conversion rates, product
+              leaderboards, and continuous shopper activity feeds.
             </p>
             <Link
               href="/dashboard"
@@ -103,7 +110,8 @@ export default function Home() {
             </div>
             <h3 className="text-base font-semibold text-white mb-2">Admin Intelligence</h3>
             <p className="text-xs text-zinc-400 leading-relaxed mb-4">
-              Gross Marketplace Volume (GMV), platform take-rate commissions, multi-gateway transaction health, and user growth trajectories.
+              Gross Marketplace Volume (GMV), platform take-rate commissions, multi-gateway
+              transaction health, and user growth trajectories.
             </p>
             <Link
               href="/dashboard"
@@ -120,7 +128,8 @@ export default function Home() {
             </div>
             <h3 className="text-base font-semibold text-white mb-2">Autonomous AI Core</h3>
             <p className="text-xs text-zinc-400 leading-relaxed mb-4">
-              RAG shopping conversational assistant, pgvector product embedding pipeline, AI seller copywriting, and content-based recommendations.
+              RAG shopping conversational assistant, pgvector product embedding pipeline, AI seller
+              copywriting, and content-based recommendations.
             </p>
             <a
               href="http://localhost:8000/docs"

@@ -10,24 +10,27 @@
 ## 1. Global API Conventions & Standards
 
 ### 1.1. Base URL & Protocol
+
 - All endpoints are prefixed with `/api/v1`.
 - Production traffic strictly enforces **HTTPS**.
 - All request and response bodies use **JSON** (`Content-Type: application/json`), unless explicitly noted (e.g. multipart file uploads or webhook raw payloads).
 
 ### 1.2. Standard Request Headers
-| Header | Description | Required | Example |
-| :--- | :--- | :--- | :--- |
-| `Authorization` | Bearer JWT access token for protected endpoints | Conditional | `Bearer eyJhbGciOiJIUzI1Ni...` |
-| `Content-Type` | MIME type of the payload | Yes (for POST/PATCH) | `application/json` |
-| `Idempotency-Key` | UUID to prevent duplicate mutations (e.g. checkout, payments) | Recommended | `9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d` |
-| `X-Session-Token` | Ephemeral guest session tracking for unauthenticated carts & AI chat | Optional | `sess_8f3a9e1b2c4d` |
-| `X-Request-Id` | Unique tracing identifier propagated through logs and responses | Automatic / Optional | `req_01HPX7K9M...` |
+
+| Header            | Description                                                          | Required             | Example                                |
+| :---------------- | :------------------------------------------------------------------- | :------------------- | :------------------------------------- |
+| `Authorization`   | Bearer JWT access token for protected endpoints                      | Conditional          | `Bearer eyJhbGciOiJIUzI1Ni...`         |
+| `Content-Type`    | MIME type of the payload                                             | Yes (for POST/PATCH) | `application/json`                     |
+| `Idempotency-Key` | UUID to prevent duplicate mutations (e.g. checkout, payments)        | Recommended          | `9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d` |
+| `X-Session-Token` | Ephemeral guest session tracking for unauthenticated carts & AI chat | Optional             | `sess_8f3a9e1b2c4d`                    |
+| `X-Request-Id`    | Unique tracing identifier propagated through logs and responses      | Automatic / Optional | `req_01HPX7K9M...`                     |
 
 ---
 
 ## 2. Standardized Response Envelope & Status Codes
 
 ### 2.1. Success Envelope Format
+
 Every successful response returns a standardized JSON structure:
 
 ```json
@@ -41,6 +44,7 @@ Every successful response returns a standardized JSON structure:
 ```
 
 For paginated collections:
+
 ```json
 {
   "success": true,
@@ -60,6 +64,7 @@ For paginated collections:
 ```
 
 ### 2.2. Error Envelope Format (RFC 7807 Inspired)
+
 Failed requests return a structured error envelope:
 
 ```json
@@ -87,29 +92,31 @@ Failed requests return a structured error envelope:
 
 ### 2.3. HTTP Status Codes Reference
 
-| Code | Status | Usage in DokanOS |
-| :--- | :--- | :--- |
-| `200` | **OK** | Standard successful response for `GET`, `PATCH`, and non-creational `POST`. |
-| `201` | **Created** | Resource successfully created via `POST` (e.g., user registered, product created, order placed). |
-| `204` | **No Content** | Mutation succeeded with nothing to return (e.g. `DELETE /products/:id`). |
-| `400` | **Bad Request** | Malformed JSON syntax or schema validation error via `class-validator`. |
-| `401` | **Unauthorized** | Missing, malformed, or expired JWT access token. |
-| `403` | **Forbidden** | Valid token, but user lacks permissions (e.g. Customer accessing seller routes, or Seller editing another store's product). |
-| `404` | **Not Found** | Resource identified by UUID/slug does not exist. |
-| `409` | **Conflict** | Unique constraint violation (e.g. email already exists, store slug taken). |
-| `422` | **Unprocessable Entity** | Business rule failed (e.g. checkout attempted on out-of-stock product). |
-| `429` | **Too Many Requests** | Rate limit threshold exceeded on Redis sliding-window guard. |
-| `500` | **Internal Server Error** | Unexpected unhandled server exception. |
+| Code  | Status                    | Usage in DokanOS                                                                                                            |
+| :---- | :------------------------ | :-------------------------------------------------------------------------------------------------------------------------- |
+| `200` | **OK**                    | Standard successful response for `GET`, `PATCH`, and non-creational `POST`.                                                 |
+| `201` | **Created**               | Resource successfully created via `POST` (e.g., user registered, product created, order placed).                            |
+| `204` | **No Content**            | Mutation succeeded with nothing to return (e.g. `DELETE /products/:id`).                                                    |
+| `400` | **Bad Request**           | Malformed JSON syntax or schema validation error via `class-validator`.                                                     |
+| `401` | **Unauthorized**          | Missing, malformed, or expired JWT access token.                                                                            |
+| `403` | **Forbidden**             | Valid token, but user lacks permissions (e.g. Customer accessing seller routes, or Seller editing another store's product). |
+| `404` | **Not Found**             | Resource identified by UUID/slug does not exist.                                                                            |
+| `409` | **Conflict**              | Unique constraint violation (e.g. email already exists, store slug taken).                                                  |
+| `422` | **Unprocessable Entity**  | Business rule failed (e.g. checkout attempted on out-of-stock product).                                                     |
+| `429` | **Too Many Requests**     | Rate limit threshold exceeded on Redis sliding-window guard.                                                                |
+| `500` | **Internal Server Error** | Unexpected unhandled server exception.                                                                                      |
 
 ---
 
 ## 3. Authentication Domain
 
 ### 3.1. `POST /auth/register`
+
 - **HTTP Method:** `POST`
 - **Purpose:** Create a new user account (Customer or Seller).
 - **Authentication:** `Public` (No token required)
 - **Request Body:**
+
 ```json
 {
   "email": "sarah.merchant@example.com",
@@ -120,7 +127,9 @@ Failed requests return a structured error envelope:
   "role": "SELLER"
 }
 ```
-*Validation Rules:*
+
+_Validation Rules:_
+
 - `email`: valid email string, required, normalized lowercase
 - `password`: string, min 8 chars, at least 1 uppercase, 1 lowercase, 1 number, 1 special character
 - `firstName`: string, 2-100 chars, required
@@ -129,6 +138,7 @@ Failed requests return a structured error envelope:
 - `role`: optional enum (`CUSTOMER` | `SELLER`), default `CUSTOMER`
 
 - **Response Format (`201 Created`):**
+
 ```json
 {
   "success": true,
@@ -152,7 +162,8 @@ Failed requests return a structured error envelope:
   "path": "/api/v1/auth/register"
 }
 ```
-*Headers Sent:* `Set-Cookie: refreshToken=...; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth/refresh; Max-Age=604800`
+
+_Headers Sent:_ `Set-Cookie: refreshToken=...; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth/refresh; Max-Age=604800`
 
 - **Error Cases:**
   - `400 Bad Request`: Validation failure on weak password or missing fields (`VALIDATION_FAILED`).
@@ -162,17 +173,21 @@ Failed requests return a structured error envelope:
 ---
 
 ### 3.2. `POST /auth/login`
+
 - **HTTP Method:** `POST`
 - **Purpose:** Authenticate credentials, issue short-lived access token, and establish refresh session in Redis.
 - **Authentication:** `Public`
 - **Request Body:**
+
 ```json
 {
   "email": "sarah.merchant@example.com",
   "password": "SecurePassword123!"
 }
 ```
+
 - **Response Format (`200 OK`):**
+
 ```json
 {
   "success": true,
@@ -195,7 +210,8 @@ Failed requests return a structured error envelope:
   "path": "/api/v1/auth/login"
 }
 ```
-*Headers Sent:* `Set-Cookie: refreshToken=...; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth/refresh; Max-Age=604800`
+
+_Headers Sent:_ `Set-Cookie: refreshToken=...; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth/refresh; Max-Age=604800`
 
 - **Error Cases:**
   - `400 Bad Request`: Malformed email or missing password.
@@ -206,11 +222,13 @@ Failed requests return a structured error envelope:
 ---
 
 ### 3.3. `POST /auth/refresh`
+
 - **HTTP Method:** `POST`
 - **Purpose:** Rotate refresh token and issue a fresh access token without requiring re-login.
 - **Authentication:** `Cookie-based` (`refreshToken` cookie required)
 - **Request Body:** `{}` (Empty; token read from HTTP-only Cookie or optional `{ "refreshToken": "..." }` body fallback for non-browser mobile clients).
 - **Response Format (`200 OK`):**
+
 ```json
 {
   "success": true,
@@ -223,7 +241,8 @@ Failed requests return a structured error envelope:
   "path": "/api/v1/auth/refresh"
 }
 ```
-*Headers Sent:* Rotated `Set-Cookie: refreshToken=new_token; HttpOnly; Secure; SameSite=Strict; ...`
+
+_Headers Sent:_ Rotated `Set-Cookie: refreshToken=new_token; HttpOnly; Secure; SameSite=Strict; ...`
 
 - **Error Cases:**
   - `401 Unauthorized`: Missing, expired, or invalid refresh token (`REFRESH_TOKEN_INVALID`).
@@ -234,11 +253,13 @@ Failed requests return a structured error envelope:
 ## 4. Users Domain
 
 ### 4.1. `GET /users/profile`
+
 - **HTTP Method:** `GET`
 - **Purpose:** Retrieve the full authenticated user profile, active role, notification counter, and store affiliation (if Seller).
 - **Authentication:** `Bearer JWT` (Any authenticated user)
 - **Request Body:** None
 - **Response Format (`200 OK`):**
+
 ```json
 {
   "success": true,
@@ -272,6 +293,7 @@ Failed requests return a structured error envelope:
   "path": "/api/v1/users/profile"
 }
 ```
+
 - **Error Cases:**
   - `401 Unauthorized`: Token missing or expired.
   - `404 Not Found`: User no longer exists in database (`USER_NOT_FOUND`).
@@ -281,10 +303,12 @@ Failed requests return a structured error envelope:
 ## 5. Stores Domain
 
 ### 5.1. `POST /stores`
+
 - **HTTP Method:** `POST`
 - **Purpose:** Create a new vendor storefront on the marketplace.
 - **Authentication:** `Bearer JWT` (Role: `SELLER` or `ADMIN`)
 - **Request Body:**
+
 ```json
 {
   "name": "Gadget Hub",
@@ -294,7 +318,9 @@ Failed requests return a structured error envelope:
   "bannerUrl": "https://cdn.dokanos.com/stores/gadget-hub/banner.webp"
 }
 ```
-*Validation Rules:*
+
+_Validation Rules:_
+
 - `name`: string, 2-150 chars, required
 - `slug`: string, lowercase alphanumeric and hyphens only, 2-160 chars, required
 - `description`: optional string, max 2000 chars
@@ -302,6 +328,7 @@ Failed requests return a structured error envelope:
 - `bannerUrl`: optional valid URI
 
 - **Response Format (`201 Created`):**
+
 ```json
 {
   "success": true,
@@ -321,6 +348,7 @@ Failed requests return a structured error envelope:
   "path": "/api/v1/stores"
 }
 ```
+
 - **Error Cases:**
   - `400 Bad Request`: Invalid slug format (e.g. contains spaces or special characters).
   - `401 Unauthorized`: Unauthenticated.
@@ -330,12 +358,14 @@ Failed requests return a structured error envelope:
 ---
 
 ### 5.2. `GET /stores/:slug`
+
 - **HTTP Method:** `GET`
 - **Purpose:** Public endpoint to view a vendor's storefront profile, statistics, and policies.
 - **Authentication:** `Public`
 - **Request Parameters:**
   - `slug`: URL slug string (e.g. `gadget-hub`)
 - **Response Format (`200 OK`):**
+
 ```json
 {
   "success": true,
@@ -357,6 +387,7 @@ Failed requests return a structured error envelope:
   "path": "/api/v1/stores/gadget-hub"
 }
 ```
+
 - **Error Cases:**
   - `404 Not Found`: Store with slug not found or suspended (`STORE_NOT_FOUND`).
 
@@ -365,10 +396,12 @@ Failed requests return a structured error envelope:
 ## 6. Products Domain
 
 ### 6.1. `POST /products`
+
 - **HTTP Method:** `POST`
 - **Purpose:** Create a new product SKU in a vendor store. Automatically triggers asynchronous embedding generation in the AI service.
 - **Authentication:** `Bearer JWT` (Role: `SELLER`, `ADMIN`)
 - **Request Body:**
+
 ```json
 {
   "storeId": "a1c5d984-2e33-4f91-8dc1-6c2e3914a112",
@@ -380,7 +413,7 @@ Failed requests return a structured error envelope:
   "barcode": "8901234567890",
   "price": 199.99,
   "compareAtPrice": 219.99,
-  "costPrice": 130.00,
+  "costPrice": 130.0,
   "stockQuantity": 35,
   "lowStockThreshold": 5,
   "status": "ACTIVE",
@@ -406,7 +439,9 @@ Failed requests return a structured error envelope:
   ]
 }
 ```
+
 - **Response Format (`201 Created`):**
+
 ```json
 {
   "success": true,
@@ -426,6 +461,7 @@ Failed requests return a structured error envelope:
   "path": "/api/v1/products"
 }
 ```
+
 - **Error Cases:**
   - `400 Bad Request`: Negative price or stock quantity (`INVALID_INPUT`).
   - `403 Forbidden`: Authenticated seller does not own `storeId` (`FORBIDDEN_STORE_ACCESS`).
@@ -435,6 +471,7 @@ Failed requests return a structured error envelope:
 ---
 
 ### 6.2. `GET /products`
+
 - **HTTP Method:** `GET`
 - **Purpose:** Public marketplace catalog browsing with full filtering, sorting, and pagination.
 - **Authentication:** `Public`
@@ -449,6 +486,7 @@ Failed requests return a structured error envelope:
   - `status`: string (default `ACTIVE`)
   - `sortBy`: `price_asc` | `price_desc` | `newest` | `rating` (default `newest`)
 - **Response Format (`200 OK`):**
+
 ```json
 {
   "success": true,
@@ -492,12 +530,14 @@ Failed requests return a structured error envelope:
 ---
 
 ### 6.3. `GET /products/:id`
+
 - **HTTP Method:** `GET`
 - **Purpose:** Public product detail view with full specifications, gallery images, and seller ratings.
 - **Authentication:** `Public`
 - **Parameters:**
   - `id`: UUID or slug
 - **Response Format (`200 OK`):**
+
 ```json
 {
   "success": true,
@@ -540,16 +580,19 @@ Failed requests return a structured error envelope:
   "path": "/api/v1/products/f4892c10-9b41-47fa-891d-5c782103a891"
 }
 ```
+
 - **Error Cases:**
   - `404 Not Found`: Product ID does not exist (`PRODUCT_NOT_FOUND`).
 
 ---
 
 ### 6.4. `PATCH /products/:id`
+
 - **HTTP Method:** `PATCH`
 - **Purpose:** Update product inventory, pricing, or metadata.
 - **Authentication:** `Bearer JWT` (Role: `SELLER` who owns the store, or `ADMIN`)
 - **Request Body (Partial Update):**
+
 ```json
 {
   "price": 189.99,
@@ -557,7 +600,9 @@ Failed requests return a structured error envelope:
   "status": "ACTIVE"
 }
 ```
+
 - **Response Format (`200 OK`):**
+
 ```json
 {
   "success": true,
@@ -573,6 +618,7 @@ Failed requests return a structured error envelope:
   "path": "/api/v1/products/f4892c10-9b41-47fa-891d-5c782103a891"
 }
 ```
+
 - **Error Cases:**
   - `401 Unauthorized`: Unauthenticated.
   - `403 Forbidden`: Authenticated user is not the owner of the store listing this product (`OWNERSHIP_VIOLATION`).
@@ -581,11 +627,13 @@ Failed requests return a structured error envelope:
 ---
 
 ### 6.5. `DELETE /products/:id`
+
 - **HTTP Method:** `DELETE`
 - **Purpose:** Soft-delete/archive a product so historical orders remain intact.
 - **Authentication:** `Bearer JWT` (Role: `SELLER` owner, or `ADMIN`)
 - **Request Body:** None
 - **Response Format (`200 OK` or `204 No Content`):**
+
 ```json
 {
   "success": true,
@@ -599,6 +647,7 @@ Failed requests return a structured error envelope:
   "path": "/api/v1/products/f4892c10-9b41-47fa-891d-5c782103a891"
 }
 ```
+
 - **Error Cases:**
   - `403 Forbidden`: Attempting to delete another seller's product.
   - `404 Not Found`: Product not found.
@@ -608,11 +657,13 @@ Failed requests return a structured error envelope:
 ## 7. Cart Domain
 
 ### 7.1. `GET /cart`
+
 - **HTTP Method:** `GET`
 - **Purpose:** Fetch the active user's cart (or guest cart via `X-Session-Token` header). Evaluates live stock availability for each item.
 - **Authentication:** `Optional` (Supports authenticated Bearer token or `X-Session-Token` guest header)
 - **Request Body:** None
 - **Response Format (`200 OK`):**
+
 ```json
 {
   "success": true,
@@ -651,10 +702,12 @@ Failed requests return a structured error envelope:
 ---
 
 ### 7.2. `POST /cart/items`
+
 - **HTTP Method:** `POST`
 - **Purpose:** Add an item to the cart or increment its quantity if already present.
 - **Authentication:** `Optional` (Bearer JWT or `X-Session-Token`)
 - **Request Body:**
+
 ```json
 {
   "productId": "f4892c10-9b41-47fa-891d-5c782103a891",
@@ -665,12 +718,15 @@ Failed requests return a structured error envelope:
   }
 }
 ```
-*Validation Rules:*
+
+_Validation Rules:_
+
 - `productId`: valid UUID, required
 - `quantity`: integer >= 1, required
 - `selectedAttributes`: optional key-value object
 
 - **Response Format (`200 OK`):**
+
 ```json
 {
   "success": true,
@@ -686,6 +742,7 @@ Failed requests return a structured error envelope:
   "path": "/api/v1/cart/items"
 }
 ```
+
 - **Error Cases:**
   - `400 Bad Request`: `quantity` less than 1.
   - `404 Not Found`: `productId` does not exist.
@@ -696,12 +753,14 @@ Failed requests return a structured error envelope:
 ## 8. Orders Domain
 
 ### 8.1. `POST /orders`
+
 - **HTTP Method:** `POST`
 - **Purpose:** Checkout conversion. Atomically reserves product inventory, locks snapshots of line item prices in `OrderItem`, and creates a pending `Order`.
 - **Authentication:** `Bearer JWT` (Role: `CUSTOMER`, `SELLER`, `ADMIN`)
 - **Request Headers:**
   - `Idempotency-Key`: UUID (Recommended to prevent duplicate checkouts)
 - **Request Body:**
+
 ```json
 {
   "shippingAddress": {
@@ -723,7 +782,9 @@ Failed requests return a structured error envelope:
   "customerNote": "Please call before delivery"
 }
 ```
+
 - **Response Format (`201 Created`):**
+
 ```json
 {
   "success": true,
@@ -745,6 +806,7 @@ Failed requests return a structured error envelope:
   "path": "/api/v1/orders"
 }
 ```
+
 - **Error Cases:**
   - `400 Bad Request`: Cart is empty (`CART_EMPTY`).
   - `401 Unauthorized`: Unauthenticated.
@@ -753,6 +815,7 @@ Failed requests return a structured error envelope:
 ---
 
 ### 8.2. `GET /orders`
+
 - **HTTP Method:** `GET`
 - **Purpose:** Retrieve paginated order history for the current customer (or filtered vendor orders if user is a seller).
 - **Authentication:** `Bearer JWT`
@@ -761,6 +824,7 @@ Failed requests return a structured error envelope:
   - `limit`: integer (default `10`)
   - `status`: `PENDING` | `PAID` | `PROCESSING` | `SHIPPED` | `DELIVERED` | `CANCELLED`
 - **Response Format (`200 OK`):**
+
 ```json
 {
   "success": true,
@@ -807,22 +871,27 @@ Failed requests return a structured error envelope:
 ## 9. Payments Domain
 
 ### 9.1. `POST /payments/create`
+
 - **HTTP Method:** `POST`
 - **Purpose:** Initialize a payment intent (Stripe) or hosted checkout session (SSLCommerz) for an existing pending order.
 - **Authentication:** `Bearer JWT`
 - **Request Body:**
+
 ```json
 {
   "orderId": "e148a092-7489-4bc2-a1b9-389104bc1230",
   "provider": "STRIPE"
 }
 ```
-*Validation Rules:*
+
+_Validation Rules:_
+
 - `orderId`: valid UUID, required
 - `provider`: enum (`STRIPE` | `SSLCOMMERZ`), required
 
 - **Response Format (`200 OK`):**
-*For Stripe:*
+  _For Stripe:_
+
 ```json
 {
   "success": true,
@@ -838,7 +907,9 @@ Failed requests return a structured error envelope:
   "path": "/api/v1/payments/create"
 }
 ```
-*For SSLCommerz:*
+
+_For SSLCommerz:_
+
 ```json
 {
   "success": true,
@@ -854,6 +925,7 @@ Failed requests return a structured error envelope:
   "path": "/api/v1/payments/create"
 }
 ```
+
 - **Error Cases:**
   - `400 Bad Request`: Order is already paid (`ORDER_ALREADY_PAID`).
   - `403 Forbidden`: Authenticated user does not own this order (`ORDER_ACCESS_DENIED`).
@@ -862,16 +934,19 @@ Failed requests return a structured error envelope:
 ---
 
 ### 9.2. `POST /payments/webhook`
+
 - **HTTP Method:** `POST`
 - **Purpose:** Asynchronous payment notification endpoint. Validates raw cryptographic HMAC signatures and transitions orders from `PENDING` to `PAID`.
 - **Authentication:** `Signature Verified` (Stripe `stripe-signature` header or SSLCommerz IPN hash)
 - **Request Body:** Raw Gateway Webhook JSON payload.
 - **Response Format (`200 OK`):**
+
 ```json
 {
   "received": true
 }
 ```
+
 - **Error Cases:**
   - `400 Bad Request`: Invalid signature header (`SIGNATURE_VERIFICATION_FAILED`).
   - `409 Conflict`: Duplicate transaction webhook dropped via Redis idempotency key.
@@ -881,10 +956,12 @@ Failed requests return a structured error envelope:
 ## 10. AI Domain
 
 ### 10.1. `POST /ai/chat`
+
 - **HTTP Method:** `POST`
 - **Purpose:** Conversational RAG shopping assistant. Translates natural language questions into vector embeddings, queries `pgvector`, and generates contextual product recommendations with citations.
 - **Authentication:** `Optional` (Supports authenticated Bearer token or `X-Session-Token`)
 - **Request Body:**
+
 ```json
 {
   "conversationId": "38a19bc0-4e20-48a1-9cb1-7a89102b41c0",
@@ -892,7 +969,9 @@ Failed requests return a structured error envelope:
   "categoryFilter": "keyboards"
 }
 ```
+
 - **Response Format (`200 OK`):**
+
 ```json
 {
   "success": true,
@@ -915,6 +994,7 @@ Failed requests return a structured error envelope:
   "path": "/api/v1/ai/chat"
 }
 ```
+
 - **Error Cases:**
   - `400 Bad Request`: Message is empty or exceeds 500 characters.
   - `429 Too Many Requests`: Exceeded 20 AI queries per minute per user/IP (`AI_RATE_LIMIT_EXCEEDED`).
@@ -923,10 +1003,12 @@ Failed requests return a structured error envelope:
 ---
 
 ### 10.2. `POST /ai/product-description`
+
 - **HTTP Method:** `POST`
 - **Purpose:** Seller Copilot tool. Generates high-converting markdown descriptions, SEO meta tags, and category classifications from minimal bullet points.
 - **Authentication:** `Bearer JWT` (Role: `SELLER`, `ADMIN`)
 - **Request Body:**
+
 ```json
 {
   "title": "Ergonomic Bamboo Laptop Stand",
@@ -940,7 +1022,9 @@ Failed requests return a structured error envelope:
   "tone": "PROFESSIONAL"
 }
 ```
+
 - **Response Format (`200 OK`):**
+
 ```json
 {
   "success": true,
@@ -964,6 +1048,7 @@ Failed requests return a structured error envelope:
   "path": "/api/v1/ai/product-description"
 }
 ```
+
 - **Error Cases:**
   - `400 Bad Request`: Missing title or key features.
   - `403 Forbidden`: Customers cannot use seller AI tools.
@@ -974,6 +1059,7 @@ Failed requests return a structured error envelope:
 ## 11. Real-Time & Chat Domain
 
 ### 11.1. `GET /conversations`
+
 - **HTTP Method:** `GET`
 - **Purpose:** Fetch the active messaging inbox for a customer or store, sorted by `lastMessageAt` with unread counts.
 - **Authentication:** `Bearer JWT`
@@ -982,6 +1068,7 @@ Failed requests return a structured error envelope:
   - `limit`: integer (default `20`)
   - `storeId`: UUID (optional filter if seller is viewing a specific store inbox)
 - **Response Format (`200 OK`):**
+
 ```json
 {
   "success": true,
@@ -1024,25 +1111,28 @@ Failed requests return a structured error envelope:
 ---
 
 ### 11.2. `POST /messages`
+
 - **HTTP Method:** `POST`
 - **Purpose:** Send a message in a conversation thread. Persists to PostgreSQL and emits a real-time WebSocket event via Socket.io to the conversation room (`chat:<conversationId>`).
 - **Authentication:** `Bearer JWT`
 - **Request Body:**
+
 ```json
 {
   "conversationId": "7a89102b-41c0-4e20-48a1-9cb138a19bc0",
   "content": "Yes, we have 5 units of the Navy Blue variant in stock ready to ship!",
-  "attachments": [
-    "https://cdn.dokanos.com/chat/navy-blue-sample.webp"
-  ]
+  "attachments": ["https://cdn.dokanos.com/chat/navy-blue-sample.webp"]
 }
 ```
-*Validation Rules:*
+
+_Validation Rules:_
+
 - `conversationId`: valid UUID, required
 - `content`: string, 1-2000 chars, required
 - `attachments`: optional array of valid URL strings (max 5)
 
 - **Response Format (`201 Created`):**
+
 ```json
 {
   "success": true,
@@ -1052,9 +1142,7 @@ Failed requests return a structured error envelope:
     "conversationId": "7a89102b-41c0-4e20-48a1-9cb138a19bc0",
     "senderId": "a1c5d984-2e33-4f91-8dc1-6c2e3914a112",
     "content": "Yes, we have 5 units of the Navy Blue variant in stock ready to ship!",
-    "attachments": [
-      "https://cdn.dokanos.com/chat/navy-blue-sample.webp"
-    ],
+    "attachments": ["https://cdn.dokanos.com/chat/navy-blue-sample.webp"],
     "isRead": false,
     "createdAt": "2026-09-24T17:30:00.000Z"
   },
@@ -1062,6 +1150,7 @@ Failed requests return a structured error envelope:
   "path": "/api/v1/messages"
 }
 ```
+
 - **Error Cases:**
   - `400 Bad Request`: Missing or blank content.
   - `403 Forbidden`: User is neither the customer nor the store owner participating in this conversation (`NOT_CONVERSATION_PARTICIPANT`).

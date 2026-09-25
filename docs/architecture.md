@@ -15,11 +15,11 @@ Traditional e-commerce platforms treat AI as an external novelty (simple chatbot
 
 ### Platform Stakeholders & Personas
 
-| Persona | Core Responsibilities | Key Capabilities in DokanOS |
-| :--- | :--- | :--- |
-| **Customer** | Discovery & Purchasing | Natural language search, conversational shopping assistant, live seller chat, checkout, order tracking |
-| **Seller** | Store & Inventory Management | Multi-store setup, AI-generated descriptions and SEO tags, order fulfillment, real-time customer messaging |
-| **Admin** | Governance & Operations | Platform-wide user/store moderation, commission tracking, payout settlements, audit trails, system observability |
+| Persona      | Core Responsibilities        | Key Capabilities in DokanOS                                                                                      |
+| :----------- | :--------------------------- | :--------------------------------------------------------------------------------------------------------------- |
+| **Customer** | Discovery & Purchasing       | Natural language search, conversational shopping assistant, live seller chat, checkout, order tracking           |
+| **Seller**   | Store & Inventory Management | Multi-store setup, AI-generated descriptions and SEO tags, order fulfillment, real-time customer messaging       |
+| **Admin**    | Governance & Operations      | Platform-wide user/store moderation, commission tracking, payout settlements, audit trails, system observability |
 
 ### Architectural Tenets
 
@@ -331,8 +331,8 @@ erDiagram
 
 ```sql
 -- HNSW Cosine Index for ultra-fast approximate nearest neighbor lookups
-CREATE INDEX product_embedding_hnsw_idx 
-ON "ProductEmbedding" 
+CREATE INDEX product_embedding_hnsw_idx
+ON "ProductEmbedding"
 USING hnsw (embedding vector_cosine_ops)
 WITH (m = 16, ef_construction = 64);
 ```
@@ -406,7 +406,7 @@ sequenceDiagram
 
     Customer->>Frontend: Click "Place Order & Pay"
     Frontend->>API: POST /api/v1/orders/checkout { cartId, gateway: 'STRIPE' }
-    
+
     rect rgb(240, 245, 255)
     Note over API, DB: Atomic Inventory & Order Booking
     API->>DB: BEGIN TRANSACTION
@@ -418,7 +418,7 @@ sequenceDiagram
     API->>Gateway: Create PaymentIntent / Session (amount, orderId, metadata)
     Gateway-->>API: client_secret or gateway redirect URL
     API-->>Frontend: { orderId, paymentUrl / clientSecret }
-    
+
     Frontend->>Gateway: Customer submits card / mobile payment credentials
     Gateway-->>Customer: Display instant success screen & redirect back
     Frontend->>API: GET /api/v1/orders/:id (Polls status - still 'PENDING')
@@ -427,7 +427,7 @@ sequenceDiagram
     Gateway->>API: POST /api/v1/payments/webhook<br/>[Payload + Signature Header]
     API->>API: Verify raw cryptographic webhook signature
     API->>DB: Check idempotency key (prevent double-processing)
-    
+
     rect rgb(240, 255, 240)
     Note over API, DB: Settlement
     API->>DB: UPDATE "Payment" SET status = 'COMPLETED', txId = ...
@@ -497,7 +497,7 @@ flowchart TB
 
     subgraph ProductionHost["Production Application Host (Linux VPS / Docker Engine)"]
         CADDY["Caddy Reverse Proxy<br/>(Auto Let's Encrypt SSL, Gzip/Brotli)"]
-        
+
         subgraph DockerNet["Internal Docker Bridge Network"]
             API_CONTAINER["dokanos-api (NestJS)<br/>Port: 4000"]
             AI_CONTAINER["dokanos-ai (FastAPI)<br/>Port: 8000"]
@@ -610,31 +610,31 @@ Redis operates as an in-memory acceleration and coordination tier.
 Rather than adding a separate external vector database (such as Pinecone, Qdrant, or Milvus), DokanOS utilizes the **`pgvector`** extension directly inside PostgreSQL.
 
 1. **Elimination of Dual-Write Synchronization Bugs:** With a separate vector database, every time a seller updates a product's price, title, or availability, the backend must write to Postgres, write to the vector DB, and handle failure if either write fails. In `pgvector`, the embedding vector lives right on the `ProductEmbedding` record—updated atomically in the same database transaction.
-2. **Combined Relational + Vector Filtering in a Single Query:** Standalone vector databases struggle with complex metadata pre-filtering (e.g., *"Only search products with similarity > 0.8 that are IN STOCK, priced UNDER $50, located in STORE X, and created in the LAST 30 DAYS"*). In PostgreSQL, vector similarity operators (`<=>`, `<#>`) blend directly with standard SQL `WHERE` clauses in one optimized execution plan.
+2. **Combined Relational + Vector Filtering in a Single Query:** Standalone vector databases struggle with complex metadata pre-filtering (e.g., _"Only search products with similarity > 0.8 that are IN STOCK, priced UNDER $50, located in STORE X, and created in the LAST 30 DAYS"_). In PostgreSQL, vector similarity operators (`<=>`, `<#>`) blend directly with standard SQL `WHERE` clauses in one optimized execution plan.
 3. **Dramatic Operational Cost & Simplicity Reduction:** Eliminates additional cloud vendor bills, network hops, dedicated API keys, and maintenance overhead. One database covers relational data, JSONB documents, and high-dimensional semantic search.
 
 ---
 
 ## 12. Security Architecture & Threat Mitigation
 
-| Threat Vector | Mitigation Strategy in DokanOS |
-| :--- | :--- |
-| **Broken Object Level Authorization (BOLA / IDOR)** | Strict NestJS `OwnershipGuard` verifies `store.owner_id === request.user.id` on every mutation. |
-| **Payment Tampering & Man-in-the-Middle** | Client amounts are ignored; order amounts are computed strictly on the backend. Order status transitions only via cryptographically signed webhooks. |
-| **SQL & Prompt Injection** | SQL injection is blocked via Prisma parameterized queries; LLM prompt injection is mitigated by strict Pydantic output parsers and system prompt fencing. |
-| **Token Theft / XSS** | Refresh tokens reside exclusively in `HTTP-only`, `Secure`, `SameSite=Strict` cookies inaccessible to JavaScript. |
-| **DDoS & Brute Force** | Redis sliding-window rate limiting applied per IP on public auth endpoints (`/auth/login`, `/auth/register`) and AI endpoints. |
+| Threat Vector                                       | Mitigation Strategy in DokanOS                                                                                                                            |
+| :-------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Broken Object Level Authorization (BOLA / IDOR)** | Strict NestJS `OwnershipGuard` verifies `store.owner_id === request.user.id` on every mutation.                                                           |
+| **Payment Tampering & Man-in-the-Middle**           | Client amounts are ignored; order amounts are computed strictly on the backend. Order status transitions only via cryptographically signed webhooks.      |
+| **SQL & Prompt Injection**                          | SQL injection is blocked via Prisma parameterized queries; LLM prompt injection is mitigated by strict Pydantic output parsers and system prompt fencing. |
+| **Token Theft / XSS**                               | Refresh tokens reside exclusively in `HTTP-only`, `Secure`, `SameSite=Strict` cookies inaccessible to JavaScript.                                         |
+| **DDoS & Brute Force**                              | Redis sliding-window rate limiting applied per IP on public auth endpoints (`/auth/login`, `/auth/register`) and AI endpoints.                            |
 
 ---
 
 ## 13. Summary & Verification Matrix
 
-| Capability | Module / Component | Primary Technology |
-| :--- | :--- | :--- |
-| **Unified Monorepo** | Root | Turborepo + PNPM Workspaces |
-| **Client Application** | `apps/web` | Next.js 15, React Query, Zustand, Tailwind CSS |
-| **Core API Gateway** | `apps/api` | NestJS 11, TypeScript, Prisma ORM |
-| **AI & Vector Engine** | `apps/ai-service` | Python 3.12, FastAPI, LangChain, OpenAI / Gemini |
-| **Database & Search** | Local / Cloud | PostgreSQL 16 + `pgvector` extension |
-| **Caching & Messaging** | Local / Cloud | Redis 7 Alpine |
-| **Asset Storage** | Cloud Edge | Cloudflare R2 |
+| Capability              | Module / Component | Primary Technology                               |
+| :---------------------- | :----------------- | :----------------------------------------------- |
+| **Unified Monorepo**    | Root               | Turborepo + PNPM Workspaces                      |
+| **Client Application**  | `apps/web`         | Next.js 15, React Query, Zustand, Tailwind CSS   |
+| **Core API Gateway**    | `apps/api`         | NestJS 11, TypeScript, Prisma ORM                |
+| **AI & Vector Engine**  | `apps/ai-service`  | Python 3.12, FastAPI, LangChain, OpenAI / Gemini |
+| **Database & Search**   | Local / Cloud      | PostgreSQL 16 + `pgvector` extension             |
+| **Caching & Messaging** | Local / Cloud      | Redis 7 Alpine                                   |
+| **Asset Storage**       | Cloud Edge         | Cloudflare R2                                    |

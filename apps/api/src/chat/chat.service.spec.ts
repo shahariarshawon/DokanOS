@@ -51,12 +51,17 @@ describe('ChatService', () => {
       });
 
       await expect(
-        service.getOrCreateConversation('user-seller-1', { storeId: 'store-1' }),
+        service.getOrCreateConversation('user-seller-1', {
+          storeId: 'store-1',
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('should return existing conversation if found', async () => {
-      const mockStore = { id: 'store-1', sellerProfile: { userId: 'seller-2' } };
+      const mockStore = {
+        id: 'store-1',
+        sellerProfile: { userId: 'seller-2' },
+      };
       const mockConversation = {
         id: 'conv-1',
         customerId: 'customer-1',
@@ -68,14 +73,19 @@ describe('ChatService', () => {
       prismaMock.store.findUnique.mockResolvedValue(mockStore);
       prismaMock.conversation.findFirst.mockResolvedValue(mockConversation);
 
-      const result = await service.getOrCreateConversation('customer-1', { storeId: 'store-1' });
+      const result = await service.getOrCreateConversation('customer-1', {
+        storeId: 'store-1',
+      });
 
       expect(result.id).toBe('conv-1');
       expect(prismaMock.conversation.create).not.toHaveBeenCalled();
     });
 
     it('should create conversation if not exists', async () => {
-      const mockStore = { id: 'store-1', sellerProfile: { userId: 'seller-2' } };
+      const mockStore = {
+        id: 'store-1',
+        sellerProfile: { userId: 'seller-2' },
+      };
       const createdConv = {
         id: 'conv-new',
         customerId: 'customer-1',
@@ -88,7 +98,9 @@ describe('ChatService', () => {
       prismaMock.conversation.findFirst.mockResolvedValue(null);
       prismaMock.conversation.create.mockResolvedValue(createdConv);
 
-      const result = await service.getOrCreateConversation('customer-1', { storeId: 'store-1' });
+      const result = await service.getOrCreateConversation('customer-1', {
+        storeId: 'store-1',
+      });
 
       expect(result.id).toBe('conv-new');
       expect(prismaMock.conversation.create).toHaveBeenCalled();

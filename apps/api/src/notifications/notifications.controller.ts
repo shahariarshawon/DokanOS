@@ -8,8 +8,16 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { NotificationsService, PaginatedNotifications } from './notifications.service.js';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
+  NotificationsService,
+  PaginatedNotifications,
+} from './notifications.service.js';
 import { QueryNotificationDto } from './dto/query-notification.dto.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard.js';
@@ -35,7 +43,9 @@ export class NotificationsController {
   @Get('unread-count')
   @ApiOperation({ summary: 'Get count of unread notifications' })
   @ApiResponse({ status: 200, description: 'Unread notification count' })
-  async getUnreadCount(@CurrentUser('id') userId: string): Promise<{ unreadCount: number }> {
+  async getUnreadCount(
+    @CurrentUser('id') userId: string,
+  ): Promise<{ unreadCount: number }> {
     return this.notificationsService.getUnreadCount(userId);
   }
 
@@ -52,7 +62,9 @@ export class NotificationsController {
   @Patch('read-all')
   @ApiOperation({ summary: 'Mark all unread notifications as read' })
   @ApiResponse({ status: 200, description: 'All notifications marked as read' })
-  async markAllAsRead(@CurrentUser('id') userId: string): Promise<{ updatedCount: number }> {
+  async markAllAsRead(
+    @CurrentUser('id') userId: string,
+  ): Promise<{ updatedCount: number }> {
     return this.notificationsService.markAllAsRead(userId);
   }
 

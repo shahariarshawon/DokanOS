@@ -20,7 +20,9 @@ export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Initiate payment session (Stripe PaymentIntent or SSLCommerz)' })
+  @ApiOperation({
+    summary: 'Initiate payment session (Stripe PaymentIntent or SSLCommerz)',
+  })
   @Post('create')
   @HttpCode(HttpStatus.OK)
   async createPayment(
@@ -31,7 +33,9 @@ export class PaymentsController {
   }
 
   @Public()
-  @ApiOperation({ summary: 'Stripe asynchronous webhook notification endpoint' })
+  @ApiOperation({
+    summary: 'Stripe asynchronous webhook notification endpoint',
+  })
   @Post('webhook/stripe')
   @HttpCode(HttpStatus.OK)
   async handleStripeWebhook(
@@ -43,7 +47,9 @@ export class PaymentsController {
   }
 
   @Public()
-  @ApiOperation({ summary: 'SSLCommerz asynchronous IPN notification endpoint' })
+  @ApiOperation({
+    summary: 'SSLCommerz asynchronous IPN notification endpoint',
+  })
   @Post('webhook/sslcommerz')
   @HttpCode(HttpStatus.OK)
   async handleSslCommerzWebhook(@Body() ipnPayload: Record<string, unknown>) {

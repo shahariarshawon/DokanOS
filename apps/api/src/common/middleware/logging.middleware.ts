@@ -8,9 +8,10 @@ export class LoggingMiddleware implements NestMiddleware {
 
   use(req: Request, res: Response, next: NextFunction): void {
     const startTime = Date.now();
-    
+
     // Assign or propagate correlation ID
-    const correlationId = (req.headers['x-request-id'] as string) || randomUUID();
+    const correlationId =
+      (req.headers['x-request-id'] as string) || randomUUID();
     req.headers['x-request-id'] = correlationId;
     res.setHeader('X-Request-Id', correlationId);
 
@@ -38,7 +39,9 @@ export class LoggingMiddleware implements NestMiddleware {
       } else if (statusCode >= 400) {
         this.logger.warn(`HTTP Client Warning`, JSON.stringify(logPayload));
       } else {
-        this.logger.log(`HTTP Request Success: ${method} ${originalUrl} ${statusCode} - ${duration}ms [${correlationId}]`);
+        this.logger.log(
+          `HTTP Request Success: ${method} ${originalUrl} ${statusCode} - ${duration}ms [${correlationId}]`,
+        );
       }
     });
 
