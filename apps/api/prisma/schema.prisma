@@ -81,6 +81,17 @@ enum NotificationType {
   SELLER_UPDATE
 }
 
+enum AnalyticsEventType {
+  PAGE_VIEW
+  PRODUCT_VIEW
+  STORE_VIEW
+  ADD_TO_CART
+  REMOVE_FROM_CART
+  SEARCH
+  CHECKOUT_START
+  PURCHASE
+}
+
 // -------------------------------------------------------------
 // CORE & MARKETPLACE MODELS
 // -------------------------------------------------------------
@@ -106,6 +117,7 @@ model User {
   notifications    Notification[]
   messagesSent     Message[]
   conversations    Conversation[]    @relation("CustomerConversations")
+  analyticsEvents  AnalyticsEvent[]
 
   @@index([role, status])
   @@index([createdAt])
@@ -153,6 +165,8 @@ model Store {
   products        Product[]
   orderItems      OrderItem[]
   conversations   Conversation[]
+  analyticsEvents AnalyticsEvent[]
+  dailyAnalytics  DailyStoreAnalytics[]
 
   @@index([sellerProfileId])
   @@index([status, rating])
@@ -208,6 +222,7 @@ model Product {
   cartItems         CartItem[]
   orderItems        OrderItem[]
   embedding         ProductEmbedding?
+  analyticsEvents   AnalyticsEvent[]
 
   @@unique([storeId, sku])
   @@index([storeId, status])
@@ -290,6 +305,7 @@ model Order {
   conversations   Conversation[]
 
   @@index([userId, status])
+  @@index([status, placedAt])
   @@index([placedAt])
   @@map("orders")
 }
@@ -320,6 +336,8 @@ model OrderItem {
 
   @@index([orderId])
   @@index([storeId, fulfillmentStatus])
+  @@index([storeId, createdAt])
+  @@index([productId, createdAt])
   @@map("order_items")
 }
 
@@ -419,5 +437,71 @@ model Notification {
 
   @@index([userId, isRead, createdAt])
   @@map("notifications")
+}
+
+// -------------------------------------------------------------
+// ANALYTICS & BUSINESS INTELLIGENCE
+// -------------------------------------------------------------
+
+model AnalyticsEvent {
+  id        String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventType AnalyticsEventType
+  userId    String?            @db.Uuid
+  sessionId String?            @db.VarChar(100)
+  storeId   String?            @db.Uuid
+  productId String?            @db.Uuid
+  metadata  Json?              @db.JsonB
+  ipAddress String?            @db.VarChar(45)
+  userAgent String?            @db.Text
+  createdAt DateTime           @default(now()) @db.Timestamptz
+
+  user      User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  store     Store?             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product   Product?           @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, eventType, createdAt])
+  @@index([productId, eventType, createdAt])
+  @@index([eventType, createdAt])
+  @@index([sessionId, createdAt])
+  @@map("analytics_events")
+}
+
+model DailyStoreAnalytics {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId        String   @db.Uuid
+  date           DateTime @db.Date
+  grossSales     Decimal  @default(0.00) @db.Decimal(12, 2)
+  netRevenue     Decimal  @default(0.00) @db.Decimal(12, 2)
+  commissionPaid Decimal  @default(0.00) @db.Decimal(12, 2)
+  orderCount     Int      @default(0)
+  itemsSold      Int      @default(0)
+  viewCount      Int      @default(0)
+  cartAddCount   Int      @default(0)
+  conversionRate Decimal  @default(0.00) @db.Decimal(5, 2)
+  createdAt      DateTime @default(now()) @db.Timestamptz
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  store          Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, date])
+  @@index([date])
+  @@map("daily_store_analytics")
+}
+
+model DailyPlatformAnalytics {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  date            DateTime @unique @db.Date
+  totalGmv        Decimal  @default(0.00) @db.Decimal(14, 2)
+  platformRevenue Decimal  @default(0.00) @db.Decimal(14, 2)
+  totalOrders     Int      @default(0)
+  totalItemsSold  Int      @default(0)
+  newUsers        Int      @default(0)
+  newSellers      Int      @default(0)
+  activeSellers   Int      @default(0)
+  createdAt       DateTime @default(now()) @db.Timestamptz
+  updatedAt       DateTime @updatedAt @db.Timestamptz
+
+  @@index([date])
+  @@map("daily_platform_analytics")
 }
 

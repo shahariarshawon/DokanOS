@@ -19,6 +19,7 @@ import { AiModule } from './ai/ai.module.js';
 import { RedisModule } from './common/redis/redis.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { ChatModule } from './chat/chat.module.js';
+import { AnalyticsModule } from './analytics/analytics.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 
@@ -42,6 +43,7 @@ import { AppService } from './app.service.js';
     AiModule,
     NotificationsModule,
     ChatModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [
