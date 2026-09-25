@@ -54,7 +54,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
         }
       }
     } else if (exception instanceof Error) {
-      message = exception.message;
+      const isProd = process.env.NODE_ENV === 'production';
+      message = isProd
+        ? 'An internal server error occurred. Our engineering team has been alerted.'
+        : exception.message;
+    }
+
+    // Never leak raw 500 error messages to clients in production
+    if (status >= 500 && process.env.NODE_ENV === 'production') {
+      message =
+        'An internal server error occurred. Please contact support if the issue persists.';
+      details = null;
     }
 
     const correlationId =

@@ -11,7 +11,10 @@ import { UpdateUserDto } from './dto/update-user.dto.js';
 
 export type UserWithoutSecrets = Omit<
   User,
-  'passwordHash' | 'refreshTokenHash'
+  | 'passwordHash'
+  | 'refreshTokenHash'
+  | 'passwordResetToken'
+  | 'emailVerificationToken'
 >;
 
 @Injectable()
@@ -98,8 +101,91 @@ export class UsersService {
     });
   }
 
+  async setPasswordResetToken(
+    userId: string,
+    token: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordResetToken: token,
+        passwordResetExpiresAt: expiresAt,
+      },
+    });
+  }
+
+  async findByPasswordResetToken(token: string): Promise<User | null> {
+    return this.prisma.user.findFirst({
+      where: {
+        passwordResetToken: token,
+        passwordResetExpiresAt: { gt: new Date() },
+      },
+    });
+  }
+
+  async resetPassword(
+    userId: string,
+    newPasswordHash: string,
+  ): Promise<UserWithoutSecrets> {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash: newPasswordHash,
+        passwordResetToken: null,
+        passwordResetExpiresAt: null,
+        refreshTokenHash: null, // Invalidate existing sessions on password change
+      },
+    });
+
+    return this.sanitizeUser(user);
+  }
+
+  async setEmailVerificationToken(
+    userId: string,
+    token: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        emailVerificationToken: token,
+        emailVerificationExpiresAt: expiresAt,
+      },
+    });
+  }
+
+  async findByVerificationToken(token: string): Promise<User | null> {
+    return this.prisma.user.findFirst({
+      where: {
+        emailVerificationToken: token,
+        emailVerificationExpiresAt: { gt: new Date() },
+      },
+    });
+  }
+
+  async markEmailVerified(userId: string): Promise<UserWithoutSecrets> {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        emailVerifiedAt: new Date(),
+        emailVerificationToken: null,
+        emailVerificationExpiresAt: null,
+        status: 'ACTIVE',
+      },
+    });
+
+    return this.sanitizeUser(user);
+  }
+
   sanitizeUser(user: User): UserWithoutSecrets {
-    const { passwordHash: _, refreshTokenHash: __, ...sanitized } = user;
+    const {
+      passwordHash: _,
+      refreshTokenHash: __,
+      passwordResetToken: ___,
+      emailVerificationToken: ____,
+      ...sanitized
+    } = user;
     return sanitized;
   }
 }

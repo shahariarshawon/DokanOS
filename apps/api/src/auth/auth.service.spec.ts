@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import {
+  UnauthorizedException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import bcrypt from 'bcryptjs';
 import { AuthService } from './auth.service.js';
 import { UsersService } from '../users/users.service.js';
@@ -24,6 +28,10 @@ describe('AuthService (Backend Testing)', () => {
     phone: null,
     avatarUrl: null,
     emailVerifiedAt: null,
+    passwordResetToken: null,
+    passwordResetExpiresAt: null,
+    emailVerificationToken: null,
+    emailVerificationExpiresAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -36,11 +44,19 @@ describe('AuthService (Backend Testing)', () => {
         const {
           passwordHash: _passwordHash,
           refreshTokenHash: _refreshTokenHash,
+          passwordResetToken: _prt,
+          emailVerificationToken: _evt,
           ...safe
         } = u;
         return safe;
       }),
       setRefreshTokenHash: vi.fn().mockResolvedValue(undefined),
+      setEmailVerificationToken: vi.fn().mockResolvedValue(undefined),
+      setPasswordResetToken: vi.fn().mockResolvedValue(undefined),
+      findByPasswordResetToken: vi.fn(),
+      findByVerificationToken: vi.fn(),
+      resetPassword: vi.fn(),
+      markEmailVerified: vi.fn(),
     };
 
     jwtService = {
@@ -98,6 +114,8 @@ describe('AuthService (Backend Testing)', () => {
       expect(result.tokens.accessToken).toBeDefined();
       expect(result.tokens.refreshToken).toBeDefined();
       expect(usersService.setRefreshTokenHash).toHaveBeenCalled();
+      expect(usersService.setEmailVerificationToken).toHaveBeenCalled();
+      expect(result.verificationToken).toBeDefined();
       expect(result.user.email).toBe('newuser@dokanos.com');
     });
   });
@@ -202,6 +220,109 @@ describe('AuthService (Backend Testing)', () => {
       await expect(
         authService.refreshTokens({ refreshToken: 'reused_or_tampered_token' }),
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('Password Reset Flow', () => {
+    it('should generate reset token for existing email', async () => {
+      (usersService.findByEmail as any).mockResolvedValue(mockUser);
+
+      const result = await authService.forgotPassword({
+        email: mockUser.email,
+      });
+
+      expect(usersService.setPasswordResetToken).toHaveBeenCalledWith(
+        mockUser.id,
+        expect.any(String),
+        expect.any(Date),
+      );
+      expect(result.resetToken).toBeDefined();
+      expect(result.message).toContain('password reset link');
+    });
+
+    it('should return ambiguous message for non-existent email', async () => {
+      (usersService.findByEmail as any).mockResolvedValue(null);
+
+      const result = await authService.forgotPassword({
+        email: 'ghost@dokanos.com',
+      });
+
+      expect(usersService.setPasswordResetToken).not.toHaveBeenCalled();
+      expect(result.message).toContain('password reset link');
+    });
+
+    it('should reset password with valid token and invalidate refresh token', async () => {
+      (usersService.findByPasswordResetToken as any).mockResolvedValue(
+        mockUser,
+      );
+      (usersService.resetPassword as any).mockResolvedValue({
+        ...mockUser,
+        passwordHash: 'new_hashed',
+      });
+
+      const result = await authService.resetPassword({
+        token: 'valid_reset_token',
+        newPassword: 'BrandNewPassword123!',
+      });
+
+      expect(usersService.resetPassword).toHaveBeenCalledWith(
+        mockUser.id,
+        expect.any(String),
+      );
+      expect(result.message).toContain('successfully reset');
+    });
+
+    it('should throw BadRequestException on invalid or expired reset token', async () => {
+      (usersService.findByPasswordResetToken as any).mockResolvedValue(null);
+
+      await expect(
+        authService.resetPassword({
+          token: 'invalid_or_expired_token',
+          newPassword: 'BrandNewPassword123!',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('Email Verification Flow', () => {
+    it('should verify email and activate user with valid token', async () => {
+      (usersService.findByVerificationToken as any).mockResolvedValue(mockUser);
+      const verifiedUser = { ...mockUser, emailVerifiedAt: new Date() };
+      (usersService.markEmailVerified as any).mockResolvedValue(verifiedUser);
+
+      const result = await authService.verifyEmail({
+        token: 'valid_verify_token',
+      });
+
+      expect(usersService.markEmailVerified).toHaveBeenCalledWith(mockUser.id);
+      expect(result.message).toContain('successfully verified');
+      expect(result.user.emailVerifiedAt).toBeDefined();
+    });
+
+    it('should throw BadRequestException on invalid verification token', async () => {
+      (usersService.findByVerificationToken as any).mockResolvedValue(null);
+
+      await expect(
+        authService.verifyEmail({ token: 'bogus_token' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should resend verification token if email is not yet verified', async () => {
+      (usersService.findByEmail as any).mockResolvedValue({
+        ...mockUser,
+        emailVerifiedAt: null,
+      });
+
+      const result = await authService.resendVerification({
+        email: mockUser.email,
+      });
+
+      expect(usersService.setEmailVerificationToken).toHaveBeenCalledWith(
+        mockUser.id,
+        expect.any(String),
+        expect.any(Date),
+      );
+      expect(result.verificationToken).toBeDefined();
     });
   });
 });

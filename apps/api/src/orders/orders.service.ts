@@ -3,18 +3,21 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Order, Prisma } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service.js';
 import { InventoryService } from '../inventory/inventory.service.js';
 import { CreateOrderDto } from './dto/create-order.dto.js';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto.js';
+import { AuditService } from '../common/audit/audit.service.js';
 
 @Injectable()
 export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly inventoryService: InventoryService,
+    @Optional() private readonly auditService?: AuditService,
   ) {}
 
   async createFromCart(userId: string, dto: CreateOrderDto): Promise<Order> {
@@ -152,6 +155,20 @@ export class OrdersService {
       await tx.cartItem.deleteMany({
         where: { cartId: cart.id },
       });
+
+      if (this.auditService) {
+        await this.auditService.log({
+          userId,
+          action: 'ORDER_CREATED',
+          resource: 'Order',
+          resourceId: order.id,
+          details: {
+            orderNumber: order.orderNumber,
+            totalAmount: Number(order.totalAmount),
+            itemCount: cart.items.length,
+          },
+        });
+      }
 
       return order;
     });
@@ -357,7 +374,7 @@ export class OrdersService {
       });
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const updatedOrder = await this.prisma.$transaction(async (tx) => {
       if (dto.fulfillmentStatus) {
         await tx.orderItem.updateMany({
           where: { orderId },
@@ -379,6 +396,25 @@ export class OrdersService {
         include: { items: true },
       });
     });
+
+    if (this.auditService) {
+      await this.auditService.log({
+        userId,
+        action:
+          dto.status === 'CANCELLED'
+            ? 'ORDER_CANCELLED'
+            : 'ORDER_STATUS_CHANGED',
+        resource: 'Order',
+        resourceId: order.id,
+        details: {
+          orderNumber: order.orderNumber,
+          previousStatus: order.status,
+          newStatus: dto.status,
+        },
+      });
+    }
+
+    return updatedOrder;
   }
 
   private buildOrderTimeline(order: {

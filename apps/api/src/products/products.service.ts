@@ -5,6 +5,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Prisma, Product } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service.js';
@@ -15,6 +16,8 @@ import { ProductSortBy, QueryProductDto } from './dto/query-product.dto.js';
 import { CreateVariantDto } from './dto/create-variant.dto.js';
 import { UpdateVariantDto } from './dto/update-variant.dto.js';
 import { CreateReviewDto } from './dto/create-review.dto.js';
+import { RedisService } from '../common/redis/redis.service.js';
+import { AuditService } from '../common/audit/audit.service.js';
 
 @Injectable()
 export class ProductsService {
@@ -23,6 +26,8 @@ export class ProductsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
+    @Optional() private readonly redisService?: RedisService,
+    @Optional() private readonly auditService?: AuditService,
   ) {}
 
   async create(userId: string, dto: CreateProductDto): Promise<Product> {
@@ -215,11 +220,38 @@ export class ProductsService {
         );
       });
 
+      // Invalidate product & store caches
+      if (this.redisService) {
+        await this.redisService.invalidatePattern('cache:products:*');
+        await this.redisService.invalidatePattern('cache:store:page:*');
+      }
+
+      if (this.auditService) {
+        await this.auditService.log({
+          userId,
+          action: 'PRODUCT_CREATED',
+          resource: 'Product',
+          resourceId: product.id,
+          details: {
+            title: product.title,
+            storeId: product.storeId,
+            price: Number(product.price),
+          },
+        });
+      }
+
       return product;
     });
   }
 
   async findAll(query: QueryProductDto) {
+    const cacheKey = `cache:products:list:${JSON.stringify(query)}`;
+    if (this.redisService) {
+      const cached = await this.redisService.getJson<any>(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    }
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 20;
     const skip = (page - 1) * limit;
@@ -349,7 +381,7 @@ export class ProductsService {
 
     const totalPages = Math.ceil(totalItems / limit);
 
-    return {
+    const result = {
       data: items,
       meta: {
         page,
@@ -360,6 +392,12 @@ export class ProductsService {
         hasPrevPage: page > 1,
       },
     };
+
+    if (this.redisService) {
+      await this.redisService.setJson(cacheKey, result, 120); // 2 minute cache for product queries
+    }
+
+    return result;
   }
 
   async findOne(idOrSlug: string): Promise<Product> {
@@ -488,6 +526,22 @@ export class ProductsService {
         `Failed to update embedding for product ${updated.id}: ${err.message}`,
       );
     });
+
+    // Invalidate product caches
+    if (this.redisService) {
+      await this.redisService.invalidatePattern('cache:products:*');
+      await this.redisService.invalidatePattern('cache:store:page:*');
+    }
+
+    if (this.auditService) {
+      await this.auditService.log({
+        userId,
+        action: 'PRODUCT_UPDATED',
+        resource: 'Product',
+        resourceId: updated.id,
+        details: { title: updated.title, price: Number(updated.price) },
+      });
+    }
 
     return updated;
   }
@@ -630,6 +684,21 @@ export class ProductsService {
       where: { id: productId },
       data: { status: 'ARCHIVED' },
     });
+
+    if (this.redisService) {
+      await this.redisService.invalidatePattern('cache:products:*');
+      await this.redisService.invalidatePattern('cache:store:page:*');
+    }
+
+    if (this.auditService) {
+      await this.auditService.log({
+        userId,
+        action: 'PRODUCT_DELETED',
+        resource: 'Product',
+        resourceId: productId,
+        details: { title: product.title },
+      });
+    }
 
     return {
       message: `Product '${product.title}' has been archived successfully`,

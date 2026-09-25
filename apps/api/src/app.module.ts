@@ -22,8 +22,11 @@ import { ChatModule } from './chat/chat.module.js';
 import { AnalyticsModule } from './analytics/analytics.module.js';
 import { InventoryModule } from './inventory/inventory.module.js';
 import { UploadModule } from './common/upload/upload.module.js';
+import { AuditModule } from './common/audit/audit.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
+
+import { RateLimitGuard } from './common/guards/rate-limit.guard.js';
 
 @Module({
   imports: [
@@ -34,6 +37,7 @@ import { AppService } from './app.service.js';
     }),
     DatabaseModule,
     RedisModule,
+    AuditModule,
     UsersModule,
     AuthModule,
     StoresModule,
@@ -52,6 +56,10 @@ import { AppService } from './app.service.js';
   controllers: [AppController],
   providers: [
     AppService,
+    {
+      provide: APP_GUARD,
+      useClass: RateLimitGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

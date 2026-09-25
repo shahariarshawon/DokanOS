@@ -229,4 +229,134 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       }));
     }
   }
+
+  // -------------------------------------------------------------
+  // CACHE & RATE LIMITING INFRASTRUCTURE
+  // -------------------------------------------------------------
+
+  private readonly memoryCache = new Map<
+    string,
+    { value: string; expiresAt: number }
+  >();
+  private readonly memoryRateLimiter = new Map<
+    string,
+    { count: number; resetAt: number }
+  >();
+
+  async getJson<T>(key: string): Promise<T | null> {
+    try {
+      if (this.isConnected && this.client) {
+        const data = await this.client.get(key);
+        return data ? (JSON.parse(data) as T) : null;
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Redis getJson failed for key ${key}: ${msg}`);
+    }
+
+    // Fallback to memory cache
+    const item = this.memoryCache.get(key);
+    if (item && item.expiresAt > Date.now()) {
+      return JSON.parse(item.value) as T;
+    }
+    this.memoryCache.delete(key);
+    return null;
+  }
+
+  async setJson(key: string, value: unknown, ttlSeconds = 300): Promise<void> {
+    const serialized = JSON.stringify(value);
+    try {
+      if (this.isConnected && this.client) {
+        await this.client.set(key, serialized, 'EX', ttlSeconds);
+        return;
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Redis setJson failed for key ${key}: ${msg}`);
+    }
+
+    // Fallback to memory cache
+    this.memoryCache.set(key, {
+      value: serialized,
+      expiresAt: Date.now() + ttlSeconds * 1000,
+    });
+  }
+
+  async deleteKey(key: string): Promise<void> {
+    try {
+      if (this.isConnected && this.client) {
+        await this.client.del(key);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Redis deleteKey failed for key ${key}: ${msg}`);
+    }
+    this.memoryCache.delete(key);
+  }
+
+  async invalidatePattern(pattern: string): Promise<void> {
+    try {
+      if (this.isConnected && this.client) {
+        const keys = await this.client.keys(pattern);
+        if (keys.length > 0) {
+          await this.client.del(...keys);
+        }
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Redis invalidatePattern failed for ${pattern}: ${msg}`);
+    }
+
+    // Memory cache cleanup matching regex pattern
+    const regex = new RegExp(`^${pattern.replace(/\*/g, '.*')}$`);
+    for (const key of this.memoryCache.keys()) {
+      if (regex.test(key)) {
+        this.memoryCache.delete(key);
+      }
+    }
+  }
+
+  async checkRateLimit(
+    key: string,
+    limit: number,
+    windowSeconds: number,
+  ): Promise<{ allowed: boolean; remaining: number; resetTime: number }> {
+    const now = Math.floor(Date.now() / 1000);
+    const resetTime = now + windowSeconds;
+
+    try {
+      if (this.isConnected && this.client) {
+        const rateLimitKey = `ratelimit:${key}`;
+        const count = await this.client.incr(rateLimitKey);
+        if (count === 1) {
+          await this.client.expire(rateLimitKey, windowSeconds);
+        }
+        const ttl = await this.client.ttl(rateLimitKey);
+
+        const allowed = count <= limit;
+        const remaining = Math.max(0, limit - count);
+
+        return {
+          allowed,
+          remaining,
+          resetTime: now + (ttl > 0 ? ttl : windowSeconds),
+        };
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Redis rate limit check failed for key ${key}: ${msg}`);
+    }
+
+    // In-memory rate limiting fallback
+    const mem = this.memoryRateLimiter.get(key);
+    if (!mem || mem.resetAt <= now) {
+      this.memoryRateLimiter.set(key, { count: 1, resetAt: resetTime });
+      return { allowed: true, remaining: limit - 1, resetTime };
+    }
+
+    mem.count += 1;
+    const allowed = mem.count <= limit;
+    const remaining = Math.max(0, limit - mem.count);
+    return { allowed, remaining, resetTime: mem.resetAt };
+  }
 }

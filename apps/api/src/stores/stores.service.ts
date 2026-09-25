@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Store, SellerProfile, StoreTheme, StoreSection } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service.js';
@@ -13,10 +14,16 @@ import { UpdateStoreDto } from './dto/update-store.dto.js';
 import { UpdateStoreThemeDto } from './dto/update-store-theme.dto.js';
 import { UpdateStoreSectionsDto } from './dto/update-store-sections.dto.js';
 import { CreateStoreReviewDto } from './dto/create-store-review.dto.js';
+import { RedisService } from '../common/redis/redis.service.js';
+import { AuditService } from '../common/audit/audit.service.js';
 
 @Injectable()
 export class StoresService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly redisService?: RedisService,
+    @Optional() private readonly auditService?: AuditService,
+  ) {}
 
   async createOrUpdateSellerProfile(
     userId: string,
@@ -198,8 +205,17 @@ export class StoresService {
   }
 
   async getStoreBySlug(slug: string) {
+    const normalizedSlug = slug.toLowerCase();
+    const cacheKey = `cache:store:page:${normalizedSlug}`;
+    if (this.redisService) {
+      const cached = await this.redisService.getJson<any>(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    }
+
     const store = await this.prisma.store.findUnique({
-      where: { slug: slug.toLowerCase() },
+      where: { slug: normalizedSlug },
       include: {
         theme: true,
         sections: {
@@ -228,6 +244,10 @@ export class StoresService {
 
     if (!store) {
       throw new NotFoundException(`Store with slug '${slug}' not found`);
+    }
+
+    if (this.redisService) {
+      await this.redisService.setJson(cacheKey, store, 300); // 5 min TTL
     }
 
     return store;
@@ -266,7 +286,7 @@ export class StoresService {
       }
     }
 
-    return this.prisma.store.update({
+    const updated = await this.prisma.store.update({
       where: { id: storeId },
       data: {
         name: dto.name,
@@ -280,6 +300,29 @@ export class StoresService {
         socialLinks: dto.socialLinks ? (dto.socialLinks as any) : undefined,
       },
     });
+
+    if (this.redisService) {
+      await this.redisService.deleteKey(
+        `cache:store:page:${store.slug.toLowerCase()}`,
+      );
+      if (dto.slug) {
+        await this.redisService.deleteKey(
+          `cache:store:page:${dto.slug.toLowerCase().trim()}`,
+        );
+      }
+    }
+
+    if (this.auditService) {
+      await this.auditService.log({
+        userId,
+        action: 'STORE_UPDATED',
+        resource: 'Store',
+        resourceId: storeId,
+        details: { name: updated.name, slug: updated.slug },
+      });
+    }
+
+    return updated;
   }
 
   async getStoreTheme(storeId: string): Promise<StoreTheme> {

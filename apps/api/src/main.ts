@@ -2,6 +2,7 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import helmet from 'helmet';
 import { AppModule } from './app.module.js';
 import { RedisIoAdapter } from './common/adapters/redis-io.adapter.js';
 
@@ -14,6 +15,30 @@ async function bootstrap() {
   const env = configService.get<string>('NODE_ENV', 'development');
 
   app.setGlobalPrefix('api/v1');
+
+  // Apply Helmet Security Headers
+  app.use(
+    helmet({
+      contentSecurityPolicy:
+        env === 'production'
+          ? {
+              directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'", "'unsafe-inline'"],
+                styleSrc: ["'self'", "'unsafe-inline'"],
+                imgSrc: ["'self'", 'data:', 'https:'],
+                connectSrc: ["'self'", 'https:', 'wss:', 'ws:'],
+              },
+            }
+          : false,
+      crossOriginEmbedderPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      hidePoweredBy: true,
+      xssFilter: true,
+      noSniff: true,
+      frameguard: { action: 'deny' },
+    }),
+  );
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -37,9 +62,37 @@ async function bootstrap() {
     expressApp.set('trust proxy', 1);
   }
 
+  // Hardened CORS configuration
+  const allowedOrigins = configService
+    .get<string>(
+      'ALLOWED_ORIGINS',
+      'http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000',
+    )
+    .split(',')
+    .map((o) => o.trim());
+
   app.enableCors({
-    origin: true,
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      if (!origin || allowedOrigins.includes(origin) || env !== 'production') {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin '${origin}' not allowed by CORS`));
+      }
+    },
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true,
+    allowedHeaders: [
+      'Origin',
+      'X-Requested-With',
+      'Content-Type',
+      'Accept',
+      'Authorization',
+      'X-Request-ID',
+      'X-Idempotency-Key',
+    ],
   });
 
   // Setup Redis Socket.io Adapter for horizontal clustering and cross-instance communication

@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -22,6 +23,7 @@ import {
   CreateSubscriptionCheckoutDto,
   UpdateSubscriptionDto,
 } from './dto/subscription.dto.js';
+import { AuditService } from '../common/audit/audit.service.js';
 
 export interface PaymentIntentResponse {
   paymentId: string;
@@ -100,7 +102,8 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-    private readonly notificationsService?: NotificationsService,
+    @Optional() private readonly notificationsService?: NotificationsService,
+    @Optional() private readonly auditService?: AuditService,
   ) {
     const stripeKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (
@@ -555,6 +558,20 @@ export class PaymentsService {
       this.logger.log(
         `Order '${payment.orderId}' successfully settled to PAID via ${provider}`,
       );
+
+      if (this.auditService) {
+        await this.auditService.log({
+          userId: updatedOrder.userId,
+          action: 'PAYMENT_PROCESSED',
+          resource: 'Order',
+          resourceId: updatedOrder.id,
+          details: {
+            provider,
+            transactionId,
+            amount: Number(updatedPayment.amount),
+          },
+        });
+      }
 
       // Dispatch Payment Success Notification
       if (this.notificationsService) {

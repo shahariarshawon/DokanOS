@@ -140,40 +140,69 @@ enum InventoryTransactionType {
   DAMAGE
 }
 
+enum AuditAction {
+  LOGIN
+  LOGIN_FAILED
+  LOGOUT
+  PASSWORD_RESET_REQUESTED
+  PASSWORD_RESET_SUCCESS
+  EMAIL_VERIFIED
+  ACCOUNT_ACTIVATED
+  USER_UPDATED
+  STORE_UPDATED
+  PRODUCT_CREATED
+  PRODUCT_UPDATED
+  PRODUCT_DELETED
+  ORDER_CREATED
+  ORDER_STATUS_CHANGED
+  ORDER_CANCELLED
+  PAYMENT_PROCESSED
+  PAYMENT_FAILED
+  PAYMENT_REFUNDED
+  ADMIN_ACTION
+}
+
 // -------------------------------------------------------------
 // CORE & MARKETPLACE MODELS
 // -------------------------------------------------------------
 
 model User {
-  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email            String         @unique @db.VarChar(255)
-  passwordHash     String         @db.VarChar(255)
-  firstName        String         @db.VarChar(100)
-  lastName         String         @db.VarChar(100)
-  phone            String?        @db.VarChar(30)
-  avatarUrl        String?        @db.Text
-  role             UserRole       @default(CUSTOMER)
-  status           UserStatus     @default(ACTIVE)
-  refreshTokenHash String?        @db.VarChar(255)
-  emailVerifiedAt  DateTime?      @db.Timestamptz
-  createdAt        DateTime       @default(now()) @db.Timestamptz
-  updatedAt        DateTime       @updatedAt @db.Timestamptz
+  id                         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                      String         @unique @db.VarChar(255)
+  passwordHash               String         @db.VarChar(255)
+  firstName                  String         @db.VarChar(100)
+  lastName                   String         @db.VarChar(100)
+  phone                      String?        @db.VarChar(30)
+  avatarUrl                  String?        @db.Text
+  role                       UserRole       @default(CUSTOMER)
+  status                     UserStatus     @default(ACTIVE)
+  refreshTokenHash           String?        @db.VarChar(255)
+  emailVerifiedAt            DateTime?      @db.Timestamptz
+  passwordResetToken         String?        @db.VarChar(255)
+  passwordResetExpiresAt     DateTime?      @db.Timestamptz
+  emailVerificationToken     String?        @db.VarChar(255)
+  emailVerificationExpiresAt DateTime?      @db.Timestamptz
+  createdAt                  DateTime       @default(now()) @db.Timestamptz
+  updatedAt                  DateTime       @updatedAt @db.Timestamptz
 
-  sellerProfile    SellerProfile?
-  cart             Cart?
-  orders           Order[]
-  notifications    Notification[]
-  messagesSent     Message[]
-  conversations    Conversation[]    @relation("CustomerConversations")
-  analyticsEvents  AnalyticsEvent[]
-  reviews          Review[]
-  followedStores   StoreFollower[]
-  storeReviews     StoreReview[]
-  aiConversations  AIConversation[]
-  aiUsages         AIUsage[]
+  sellerProfile              SellerProfile?
+  cart                       Cart?
+  orders                     Order[]
+  notifications              Notification[]
+  messagesSent               Message[]
+  conversations              Conversation[]    @relation("CustomerConversations")
+  analyticsEvents            AnalyticsEvent[]
+  reviews                    Review[]
+  followedStores             StoreFollower[]
+  storeReviews               StoreReview[]
+  aiConversations            AIConversation[]
+  aiUsages                   AIUsage[]
+  auditLogs                  AuditLog[]
 
   @@index([role, status])
   @@index([createdAt])
+  @@index([passwordResetToken])
+  @@index([emailVerificationToken])
   @@map("users")
 }
 
@@ -297,6 +326,7 @@ model Product {
   @@index([storeId, status])
   @@index([categoryId, status])
   @@index([price])
+  @@index([status, isFeatured, rating])
   @@index([createdAt])
   @@map("products")
 }
@@ -465,6 +495,7 @@ model Order {
   conversations   Conversation[]
 
   @@index([userId, status])
+  @@index([userId, status, placedAt])
   @@index([status, placedAt])
   @@index([placedAt])
   @@map("orders")
@@ -656,6 +687,7 @@ model Message {
   sender         User          @relation(fields: [senderId], references: [id], onDelete: Restrict)
 
   @@index([conversationId, createdAt])
+  @@index([conversationId, isRead])
   @@index([senderId, isRead])
   @@index([status])
   @@map("messages")
@@ -866,6 +898,29 @@ model AIUsage {
   @@index([userId, createdAt])
   @@index([feature, createdAt])
   @@map("ai_usages")
+}
+
+// -------------------------------------------------------------
+// AUDIT LOG SYSTEM
+// -------------------------------------------------------------
+
+model AuditLog {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String?     @db.Uuid
+  action     AuditAction
+  resource   String      @db.VarChar(100)
+  resourceId String?     @db.VarChar(100)
+  details    Json?       @db.JsonB
+  ipAddress  String?     @db.VarChar(45)
+  userAgent  String?     @db.Text
+  createdAt  DateTime    @default(now()) @db.Timestamptz
+
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([resource, resourceId])
+  @@map("audit_logs")
 }
 
 
