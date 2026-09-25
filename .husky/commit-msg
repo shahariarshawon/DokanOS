@@ -1,4 +1,4 @@
-npx --no -- commitlint --edit "$1" || node -e '
+node -e '
   const fs = require("fs");
   const msg = fs.readFileSync(process.argv[1], "utf-8").trim();
   const pattern = /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-zA-Z0-9_\-\/]+\))?: .{1,100}/;

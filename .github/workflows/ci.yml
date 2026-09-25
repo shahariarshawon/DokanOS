@@ -12,10 +12,10 @@ concurrency:
 
 jobs:
   # -------------------------------------------------------------
-  # Job 1: TypeScript Quality & Build Check (API & Web)
+  # Job 1: TypeScript Quality, Unit Tests & Build (API & Web)
   # -------------------------------------------------------------
   test-and-build-typescript:
-    name: Lint & Build (NestJS API & Next.js Web)
+    name: Lint, Test & Build (NestJS API & Next.js Web)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -24,7 +24,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
@@ -35,20 +35,26 @@ jobs:
       - name: Install Monorepo Dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Verify Code Style (Prettier)
+        run: pnpm run format:check
+
+      - name: Run Monorepo Linter (Turbo + ESLint + Oxlint)
+        run: pnpm run lint
+
       - name: Generate Prisma Client
         run: pnpm --filter api exec prisma generate
 
-      - name: Build NestJS API
-        run: pnpm --filter api build
+      - name: Run Backend Tests (Jest)
+        run: pnpm --filter api run test:jest
 
-      - name: Build Next.js Web Frontend
-        run: pnpm --filter web build
+      - name: Build Monorepo Applications (API & Web)
+        run: pnpm run build
 
   # -------------------------------------------------------------
-  # Job 2: Python AI Service Verification
+  # Job 2: Python AI Service Verification & Unit Tests
   # -------------------------------------------------------------
   test-ai-service:
-    name: Verify AI Service (Python 3.12 & FastAPI)
+    name: Verify AI Service (Python 3.12, FastAPI & pgvector)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -64,7 +70,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r apps/ai-service/requirements.txt
-          pip install flake8 pytest
+          pip install flake8 pytest pytest-asyncio
 
       - name: Lint Python Code
         run: |
@@ -104,3 +110,11 @@ jobs:
           file: apps/api/Dockerfile
           push: false
           tags: dokanos-api:ci-test
+
+      - name: Build Web Container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: false
+          tags: dokanos-web:ci-test

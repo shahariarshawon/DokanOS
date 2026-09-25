@@ -66,7 +66,7 @@ All three applications feature production-hardened, multi-stage Dockerfiles util
 
 | Container        | Base Image         | Build Strategy                                           | Exposed Port | Non-Root User    | Healthcheck                                   |
 | :--------------- | :----------------- | :------------------------------------------------------- | :----------- | :--------------- | :-------------------------------------------- |
-| **`web`**        | `node:22-alpine`   | Multi-stage, Next.js Standalone (`output: 'standalone'`) | 3000         | `nextjs` (1001)  | `curl -f http://localhost:3000/`              |
+| **`web`**        | `node:22-alpine`   | Multi-stage, Next.js Standalone (`output: 'standalone'`) | 3000         | `nextjs` (1001)  | `curl -f http://localhost:3000/api/health`    |
 | **`api`**        | `node:22-alpine`   | Multi-stage, pruned production pnpm dependencies         | 4000         | `node` (1000)    | `curl -f http://localhost:4000/api/v1/health` |
 | **`ai-service`** | `python:3.12-slim` | Multi-stage, pip wheel caching, 2 Uvicorn workers        | 8000         | `appuser` (1000) | `curl -f http://localhost:8000/health`        |
 
@@ -87,7 +87,22 @@ All three applications feature production-hardened, multi-stage Dockerfiles util
 
 ---
 
-## 3. CI/CD Pipeline (GitHub Actions)
+## 3. Deployment Architecture & Hosting Matrix
+
+DokanOS supports both fully managed cloud primitives and self-hosted container orchestration:
+
+| Component             | Recommended Production Option                      | Alternative Tier                 | Architectural Rationale                                                                                                                                                                                                 |
+| :-------------------- | :------------------------------------------------- | :------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Frontend (`web`)**  | **Vercel** / Standalone Docker on VPS              | Cloudflare Pages / AWS ECS       | Vercel provides native Next.js edge caching and asset optimization. Alternatively, `apps/web/Dockerfile` compiles a self-contained standalone server (`output: 'standalone'`) for zero-dependency container deployment. |
+| **Backend (`api`)**   | **Ubuntu VPS with Caddy** (Hetzner / DigitalOcean) | AWS ECS Fargate / Render         | Low latency, full control over WebSocket connections (`Socket.IO` Redis adapter), HTTP/3 termination, and zero per-request pricing fees.                                                                                |
+| **Database**          | **NeonDB PostgreSQL 16 (Serverless)**              | Supabase / AWS RDS PostgreSQL 16 | Native `pgvector` extension for 1536-dimension embeddings, pgbouncer connection pooling (`sslmode=require`), zero-downtime branching for testing migrations.                                                            |
+| **AI Microservice**   | **Private Docker Container** (`dokanos_net`)       | GCP Cloud Run / Modal            | Keeps AI processing private, zero egress costs between NestJS API and FastAPI, authenticated via shared secret `AI_INTERNAL_KEY`.                                                                                       |
+| **Object Storage**    | **Cloudflare R2** / Supabase Storage               | AWS S3 + CloudFront CDN          | S3-compatible API for product media and seller uploads with **zero egress bandwidth fees**, signed upload URLs, and global CDN caching.                                                                                 |
+| **Distributed Cache** | **Redis 7 Alpine** (Containerized or Upstash)      | AWS ElastiCache                  | Sub-millisecond rate-limiting, session caching, and WebSocket pub/sub fan-out across multiple API replicas.                                                                                                             |
+
+---
+
+## 4. CI/CD Pipeline (GitHub Actions)
 
 Continuous Integration and Continuous Deployment are automated across two workflows located in `.github/workflows/`:
 
@@ -124,7 +139,7 @@ Continuous Integration and Continuous Deployment are automated across two workfl
 
 ---
 
-## 4. Production VPS Deployment Guide
+## 5. Production VPS Deployment Guide
 
 ### Provisioning Ubuntu VPS (Hetzner / DigitalOcean / AWS EC2)
 
@@ -153,7 +168,7 @@ Continuous Integration and Continuous Deployment are automated across two workfl
 
 ---
 
-## 5. Database Migration Management
+## 6. Database Migration Management
 
 ### Migration Safety Rules in Production
 
@@ -172,17 +187,26 @@ Continuous Integration and Continuous Deployment are automated across two workfl
 
 ---
 
-## 6. Logging & Error Monitoring Architecture
+## 7. Monitoring, Health Checks & Observability
 
-### 1. Request Correlation Tracing (`X-Request-Id`)
+### 1. Multi-Tier Health Check Endpoints
 
-Every incoming HTTP request through `LoggingMiddleware` receives or propagates an `X-Request-Id` UUID:
+| Service             | Endpoint                   | Probe Type          | Verification Payload                                                                              |
+| :------------------ | :------------------------- | :------------------ | :------------------------------------------------------------------------------------------------ |
+| **API Gateway**     | `GET /api/v1/health`       | **Liveness Probe**  | Process uptime, heap memory usage, service version.                                               |
+| **API Gateway**     | `GET /api/v1/health/ready` | **Readiness Probe** | Live PostgreSQL query (`SELECT 1`), Redis ping latency, AI service connectivity probe.            |
+| **Web Storefront**  | `GET /api/health`          | **Liveness Probe**  | Next.js server uptime, memory usage, node version.                                                |
+| **AI Microservice** | `GET /health`              | **Full Probe**      | Vector dimensions (1536), embedding/recommendation/LLM cache metrics, database connection status. |
+
+### 2. Request Correlation Tracing (`X-Request-Id`)
+
+Every incoming HTTP request through `LoggingMiddleware` receives or propagates an `X-Request-Id` UUID across the network boundary:
 
 ```text
 Client -> Caddy -> NestJS [X-Request-Id: 4d34b588-...] -> FastAPI [X-Request-Id: 4d34b588-...]
 ```
 
-If an error occurs anywhere in the stack, the correlation ID is returned in the API error envelope:
+If an unhandled exception or upstream timeout occurs, the correlation ID is included in the unified JSON error envelope:
 
 ```json
 {
@@ -198,9 +222,13 @@ If an error occurs anywhere in the stack, the correlation ID is returned in the 
 }
 ```
 
-### 2. Docker Log Rotation
+### 3. Error Tracking (Sentry Integration)
 
-Docker containers are configured with `json-file` log drivers to prevent disk exhaustion:
+DokanOS supports drop-in Sentry error tracking for both NestJS and Next.js by setting `SENTRY_DSN` in environment configurations. Exceptions captured by `HttpExceptionFilter` and Next.js error boundaries automatically attach the `X-Request-Id` and user context (with PII redacted).
+
+### 4. Docker Log Rotation
+
+All production containers are configured with `json-file` log drivers to prevent disk exhaustion:
 
 ```yaml
 logging:
@@ -212,7 +240,7 @@ logging:
 
 ---
 
-## 7. Production Security Checklist
+## 8. Production Security Checklist
 
 - [x] **Zero Trust on Frontend Payments:** Payment confirmation occurs exclusively via cryptographically signed webhooks (`Stripe-Signature` and SSLCommerz IPN).
 - [x] **Least Privilege Container Users:** All containers execute under unprivileged users (`node`, `nextjs`, `appuser`), preventing container breakout vulnerabilities.
