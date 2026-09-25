@@ -18,8 +18,8 @@ import {
 import { Navbar } from '@/components/navbar';
 import { Footer } from '@/components/footer';
 import { useCart } from '@/lib/cart-context';
-import { formatPrice } from '@/lib/utils';
-import { initiatePayment } from '@/lib/api-client';
+import { formatPrice, getStoreName } from '@/lib/utils';
+import { initiatePayment, dispatchSystemNotification } from '@/lib/api-client';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -109,11 +109,26 @@ export default function CheckoutPage() {
               primaryImage: i.product.primaryImage,
               unitPrice: i.unitPrice,
               quantity: i.quantity,
-              storeName: i.product.storeName,
+              storeName: getStoreName(i.product.storeName || (i.product as any).store),
               fulfillmentStatus: 'UNFULFILLED',
             })),
           };
           localStorage.setItem('dokanos_orders', JSON.stringify([newOrder, ...existingOrders]));
+
+          // Dispatch genuine system notifications for this confirmed order and payment
+          dispatchSystemNotification({
+            type: 'ORDER',
+            title: `Order #${generatedId} Confirmed`,
+            body: `Your marketplace order for ${items.length} item(s) has been placed with escrow protection. Total: ${formatPrice(grandTotal)}`,
+            payload: { orderNumber: generatedId, total: grandTotal },
+          });
+
+          dispatchSystemNotification({
+            type: 'PAYMENT',
+            title: `Payment Successful ($${grandTotal.toFixed(2)})`,
+            body: `Your payment was verified and secured via ${paymentMethod === 'stripe' ? 'Stripe Gateway' : 'SSLCommerz'}.`,
+            payload: { orderNumber: generatedId, amount: grandTotal, method: paymentMethod },
+          });
         } catch {
           // ignore
         }

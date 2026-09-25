@@ -23,7 +23,7 @@ import { Footer } from '@/components/footer';
 import { fetchProducts, performHybridSearch } from '@/lib/api-client';
 import { Product, CATEGORIES } from '@/lib/mock-data';
 import { useCart } from '@/lib/cart-context';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, getStoreName } from '@/lib/utils';
 
 function ProductsContent() {
   const router = useRouter();
@@ -402,7 +402,7 @@ function ProductsContent() {
                         <div className="flex items-center justify-between text-[11px] text-zinc-500 mb-1.5">
                           <span className="flex items-center gap-1 font-medium text-zinc-700">
                             <Store className="w-3 h-3 text-zinc-400" />
-                            {product.storeName}
+                            {getStoreName((product as any).storeName || (product as any).store)}
                           </span>
                           <div className="flex items-center gap-1 text-amber-500 font-medium">
                             <Star className="w-3 h-3 fill-amber-400" />

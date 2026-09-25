@@ -30,7 +30,7 @@ import {
 } from '@/lib/api-client';
 import { Product, ProductVariant } from '@/lib/mock-data';
 import { useCart } from '@/lib/cart-context';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, getCategoryName, getStoreName } from '@/lib/utils';
 
 export default function ProductDetailPage() {
   const router = useRouter();
@@ -223,7 +223,7 @@ export default function ProductDetailPage() {
             href={`/products?categorySlug=${product.categorySlug}`}
             className="hover:text-zinc-900 transition-colors"
           >
-            {product.category}
+            {getCategoryName(product.category)}
           </Link>
           <ChevronRight className="w-3 h-3 text-zinc-400" />
           <span className="text-zinc-900 font-medium truncate max-w-[200px]">{product.title}</span>
@@ -267,10 +267,13 @@ export default function ProductDetailPage() {
                 <div className="flex items-center gap-2">
                   <span className="flex items-center gap-1.5 font-medium text-zinc-700">
                     <Store className="w-3.5 h-3.5 text-zinc-400" />
-                    Sold by <span className="font-semibold text-zinc-900">{product.storeName}</span>
+                    Sold by{' '}
+                    <span className="font-semibold text-zinc-900">
+                      {getStoreName(product.storeName || (product as any).store)}
+                    </span>
                   </span>
                   <Link
-                    href={`/inbox?storeId=${product.storeId || 'store-apple-zone'}&storeName=${encodeURIComponent(product.storeName)}`}
+                    href={`/inbox?storeId=${product.storeId || 'store-apple-zone'}&storeName=${encodeURIComponent(getStoreName(product.storeName || (product as any).store))}`}
                     className="inline-flex items-center gap-1 rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[10px] font-bold text-indigo-700 hover:bg-indigo-100 transition-colors"
                   >
                     <MessageSquare className="w-2.5 h-2.5" />

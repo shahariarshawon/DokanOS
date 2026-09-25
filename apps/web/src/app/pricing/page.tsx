@@ -50,7 +50,7 @@ export default function PricingPage() {
     try {
       const res = await createSubscriptionCheckout({
         tier,
-        successUrl: `${window.location.origin}/dashboard/billing?status=success&tier=${tier}`,
+        successUrl: `${window.location.origin}/seller/dashboard?tab=billing&status=success&tier=${tier}`,
         cancelUrl: `${window.location.origin}/pricing`,
       });
 
@@ -61,10 +61,10 @@ export default function PricingPage() {
       if (res.checkoutUrl && res.checkoutUrl.startsWith('http')) {
         window.location.href = res.checkoutUrl;
       } else {
-        router.push(`/dashboard/billing?status=activated&tier=${tier}`);
+        router.push(`/seller/dashboard?tab=billing&status=activated&tier=${tier}`);
       }
     } catch {
-      router.push(`/dashboard/billing?status=activated&tier=${tier}`);
+      router.push(`/seller/dashboard?tab=billing&status=activated&tier=${tier}`);
     } finally {
       setActionLoading(null);
     }

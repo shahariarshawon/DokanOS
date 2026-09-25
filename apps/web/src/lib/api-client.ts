@@ -66,7 +66,36 @@ export interface InventoryTransactionItem {
 }
 
 // In-memory state for local persistence during preview/dev
-let localProducts = [...MOCK_PRODUCTS];
+function loadInitialProducts(): Product[] {
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('dokanos_products');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {
+      // fallback
+    }
+  }
+  return [...MOCK_PRODUCTS];
+}
+
+let localProducts: Product[] = loadInitialProducts();
+
+export function saveLocalProducts(products: Product[]) {
+  localProducts = products;
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('dokanos_products', JSON.stringify(products));
+      window.dispatchEvent(new Event('dokanos_products_change'));
+    } catch {
+      // ignore
+    }
+  }
+}
 let localTransactions: InventoryTransactionItem[] = [
   {
     id: 'txn-mock-1',
@@ -115,6 +144,134 @@ let localTransactions: InventoryTransactionItem[] = [
   },
 ];
 
+export function normalizeProduct(raw: any): Product {
+  if (!raw) return raw;
+
+  const categoryName =
+    typeof raw.category === 'object' && raw.category !== null
+      ? raw.category.name || raw.category.slug || 'General'
+      : typeof raw.category === 'string'
+        ? raw.category
+        : 'General';
+
+  const categorySlug =
+    typeof raw.category === 'object' && raw.category !== null
+      ? raw.category.slug || 'general'
+      : typeof raw.categorySlug === 'string'
+        ? raw.categorySlug
+        : 'general';
+
+  const storeName =
+    typeof raw.store === 'object' && raw.store !== null
+      ? raw.store.name || raw.store.slug || 'Verified Vendor'
+      : typeof raw.storeName === 'string'
+        ? raw.storeName
+        : 'Verified Vendor';
+
+  const storeSlug =
+    typeof raw.store === 'object' && raw.store !== null
+      ? raw.store.slug || 'store'
+      : typeof raw.storeSlug === 'string'
+        ? raw.storeSlug
+        : 'store';
+
+  // Exact, high-fidelity default images mapped by category/slug to avoid random placeholders
+  const getCategoryFallbackImage = (cat: string, slug?: string) => {
+    const term = `${cat} ${slug || ''}`.toLowerCase();
+    if (
+      term.includes('phone') ||
+      term.includes('smartphone') ||
+      term.includes('apple') ||
+      term.includes('tech')
+    ) {
+      return 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&auto=format&fit=crop&q=80';
+    }
+    if (
+      term.includes('footwear') ||
+      term.includes('shoe') ||
+      term.includes('apparel') ||
+      term.includes('nike')
+    ) {
+      return 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&auto=format&fit=crop&q=80';
+    }
+    if (
+      term.includes('audio') ||
+      term.includes('headphone') ||
+      term.includes('sound') ||
+      term.includes('speaker')
+    ) {
+      return 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80';
+    }
+    if (term.includes('keyboard') || term.includes('peripheral') || term.includes('computer')) {
+      return 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=800&auto=format&fit=crop&q=80';
+    }
+    if (term.includes('macbook') || term.includes('laptop')) {
+      return 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800&auto=format&fit=crop&q=80';
+    }
+    if (
+      term.includes('chair') ||
+      term.includes('ergo') ||
+      term.includes('home') ||
+      term.includes('desk')
+    ) {
+      return 'https://images.unsplash.com/photo-1580481077195-c3a821a58875?w=800&auto=format&fit=crop&q=80';
+    }
+    return 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&auto=format&fit=crop&q=80';
+  };
+
+  const primaryImage =
+    raw.primaryImage ||
+    (Array.isArray(raw.images) && raw.images.length > 0
+      ? typeof raw.images[0] === 'string'
+        ? raw.images[0]
+        : raw.images[0]?.url
+      : getCategoryFallbackImage(categoryName, categorySlug));
+
+  const images = Array.isArray(raw.images)
+    ? raw.images.map((img: any) => (typeof img === 'string' ? img : img?.url || primaryImage))
+    : [primaryImage];
+
+  const variants = Array.isArray(raw.variants)
+    ? raw.variants.map((v: any) => ({
+        ...v,
+        price: typeof v.price === 'number' ? v.price : parseFloat(v.price || 0),
+        stockQuantity: typeof v.stockQuantity === 'number' ? v.stockQuantity : v.stock || 0,
+      }))
+    : [];
+
+  const stock =
+    typeof raw.stock === 'number'
+      ? raw.stock
+      : typeof raw.stockQuantity === 'number'
+        ? raw.stockQuantity
+        : 0;
+
+  const price = typeof raw.price === 'number' ? raw.price : parseFloat(raw.price || 0);
+
+  return {
+    ...raw,
+    title: raw.title || 'Untitled Product',
+    slug: raw.slug || (raw.id ? `product-${raw.id}` : 'product'),
+    description: raw.description || '',
+    price,
+    category: categoryName,
+    categorySlug,
+    storeId: raw.storeId || raw.store?.id || 'default-store',
+    storeName,
+    storeSlug,
+    storeRating: raw.storeRating || 4.9,
+    stock,
+    lowStockThreshold: raw.lowStockThreshold ?? 5,
+    rating: raw.rating ?? 4.8,
+    reviewCount: raw.reviewCount ?? 12,
+    primaryImage,
+    images,
+    variants,
+    attributes: raw.attributes || {},
+    reviews: raw.reviews || [],
+  };
+}
+
 export async function fetchProducts(params: ProductsQueryParams = {}): Promise<ProductsResponse> {
   try {
     const query = new URLSearchParams();
@@ -136,6 +293,12 @@ export async function fetchProducts(params: ProductsQueryParams = {}): Promise<P
 
     if (res.ok) {
       const data = await res.json();
+      if (data && Array.isArray(data.data)) {
+        return {
+          ...data,
+          data: data.data.map(normalizeProduct),
+        };
+      }
       return data;
     }
   } catch {
@@ -213,7 +376,8 @@ export async function fetchProductByIdOrSlug(idOrSlug: string): Promise<Product 
   try {
     const res = await fetch(`${API_BASE_URL}/products/${idOrSlug}`);
     if (res.ok) {
-      return await res.json();
+      const data = await res.json();
+      return normalizeProduct(data);
     }
   } catch {
     // Fallback
@@ -231,7 +395,7 @@ export async function duplicateProduct(productId: string): Promise<Product> {
     });
     if (res.ok) {
       const data = await res.json();
-      return data;
+      return normalizeProduct(data);
     }
   } catch {
     // Fallback
@@ -258,6 +422,160 @@ export async function duplicateProduct(productId: string): Promise<Product> {
   return cloned;
 }
 
+export async function updateProduct(
+  productId: string,
+  updates: Partial<Product>,
+): Promise<Product> {
+  try {
+    let token = '';
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('dokanos_session');
+        if (raw) {
+          const session = JSON.parse(raw);
+          if (session?.accessToken) token = session.accessToken;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const payload: any = { ...updates };
+    if (updates.images && updates.images.length > 0) {
+      payload.images = updates.images.map((url, index) => ({
+        url,
+        altText: updates.title || 'Product Image',
+        sortOrder: index,
+        isPrimary: index === 0,
+      }));
+    }
+
+    const res = await fetch(`${API_BASE_URL}/products/${productId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const normalized = normalizeProduct(data);
+      const nextList = [...localProducts];
+      const idx = nextList.findIndex((p) => p.id === productId || p.slug === productId);
+      if (idx !== -1) {
+        nextList[idx] = normalized;
+      } else {
+        nextList.unshift(normalized);
+      }
+      saveLocalProducts(nextList);
+      return normalized;
+    }
+  } catch {
+    // Fallback to in-memory/local store
+  }
+
+  const nextList = [...localProducts];
+  const idx = nextList.findIndex((p) => p.id === productId || p.slug === productId);
+  if (idx !== -1) {
+    const updatedImages =
+      updates.images && updates.images.length > 0
+        ? updates.images
+        : updates.primaryImage
+          ? [updates.primaryImage]
+          : nextList[idx].images;
+    const updatedPrimary = updates.primaryImage || updatedImages[0] || nextList[idx].primaryImage;
+
+    const updated: Product = {
+      ...nextList[idx],
+      ...updates,
+      primaryImage: updatedPrimary,
+      images: updatedImages,
+    };
+    nextList[idx] = updated;
+    saveLocalProducts(nextList);
+    return updated;
+  }
+
+  // If not found in current list, create the updated version based on updates
+  const fallbackProduct: Product = {
+    id: productId,
+    title: updates.title || 'Updated Product',
+    slug: updates.slug || `product-${productId}`,
+    description: updates.description || '',
+    price: updates.price ?? 99.99,
+    compareAtPrice: updates.compareAtPrice,
+    category: updates.category || 'Smartphones & Tech',
+    categorySlug: updates.categorySlug || 'smartphones-tech',
+    sku: updates.sku || `SKU-${productId.slice(0, 8)}`,
+    stock: updates.stock ?? 20,
+    lowStockThreshold: updates.lowStockThreshold ?? 5,
+    rating: updates.rating ?? 4.9,
+    reviewCount: updates.reviewCount ?? 10,
+    storeId: updates.storeId || 'store-apple',
+    storeName: updates.storeName || 'Apple Authorized Store',
+    storeSlug: updates.storeSlug || 'apple-authorized',
+    storeRating: 4.95,
+    primaryImage:
+      updates.primaryImage ||
+      updates.images?.[0] ||
+      'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&auto=format&fit=crop&q=80',
+    images:
+      updates.images && updates.images.length > 0
+        ? updates.images
+        : [
+            updates.primaryImage ||
+              'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&auto=format&fit=crop&q=80',
+          ],
+    variants: updates.variants || [],
+    attributes: updates.attributes || {},
+  };
+  nextList.unshift(fallbackProduct);
+  saveLocalProducts(nextList);
+  return fallbackProduct;
+}
+
+export async function createProduct(productData: Partial<Product>): Promise<Product> {
+  const images =
+    productData.images && productData.images.length > 0
+      ? productData.images
+      : productData.primaryImage
+        ? [productData.primaryImage]
+        : [
+            'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&auto=format&fit=crop&q=80',
+          ];
+  const primaryImage = images[0];
+
+  const newProd: Product = {
+    id: `prod-${Date.now()}`,
+    title: productData.title || 'New Product',
+    slug: productData.slug || (productData.title || 'product').toLowerCase().replace(/\s+/g, '-'),
+    description: productData.description || '',
+    price: productData.price ?? 99.99,
+    compareAtPrice: productData.compareAtPrice,
+    category: productData.category || 'Smartphones & Tech',
+    categorySlug: productData.categorySlug || 'smartphones-tech',
+    sku: productData.sku || `SKU-${Date.now().toString().slice(-4)}`,
+    stock: productData.stock ?? 20,
+    lowStockThreshold: productData.lowStockThreshold ?? 5,
+    rating: 5.0,
+    reviewCount: 0,
+    storeId: productData.storeId || 'store-apple',
+    storeName: productData.storeName || 'Apple Authorized Store',
+    storeSlug: productData.storeSlug || 'apple-authorized',
+    storeRating: 5.0,
+    primaryImage,
+    images,
+    variants: productData.variants || [],
+    attributes: productData.attributes || {},
+  };
+
+  const nextList = [newProd, ...localProducts];
+  saveLocalProducts(nextList);
+  return newProd;
+}
+
 export async function deleteProduct(productId: string): Promise<void> {
   try {
     await fetch(`${API_BASE_URL}/products/${productId}`, {
@@ -266,7 +584,8 @@ export async function deleteProduct(productId: string): Promise<void> {
   } catch {
     // Fallback
   }
-  localProducts = localProducts.filter((p) => p.id !== productId);
+  const nextList = localProducts.filter((p) => p.id !== productId && p.slug !== productId);
+  saveLocalProducts(nextList);
 }
 
 export async function fetchInventoryOverview(): Promise<InventoryOverview> {
@@ -359,6 +678,8 @@ export async function adjustInventoryStock(data: {
       variant.stockQuantity = Math.max(0, variant.stockQuantity + data.quantity);
     }
   }
+
+  saveLocalProducts([...localProducts]);
 
   localTransactions.unshift({
     id: `txn-${Date.now()}`,
@@ -1933,47 +2254,56 @@ let localMessages: Record<string, ChatMessage[]> = {
   ],
 };
 
-let localNotifications: NotificationItem[] = [
-  {
-    id: 'notif-1',
-    userId: 'user-customer-1',
-    type: 'PAYMENT',
-    title: 'Payment Successful',
-    body: 'Your payment of $1,199.00 for order #DOK-2026-98124 was confirmed via Stripe.',
+function loadInitialNotifications(): NotificationItem[] {
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('dokanos_notifications');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return [];
+}
+
+let localNotifications: NotificationItem[] = loadInitialNotifications();
+
+export function saveLocalNotifications(list: NotificationItem[]) {
+  localNotifications = list;
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('dokanos_notifications', JSON.stringify(list));
+      window.dispatchEvent(new Event('dokanos_notifications_change'));
+    } catch {
+      // ignore
+    }
+  }
+}
+
+export function dispatchSystemNotification(notification: {
+  userId?: string;
+  type: string;
+  title: string;
+  body: string;
+  payload?: any;
+}) {
+  const newNotif: NotificationItem = {
+    id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    userId: notification.userId || 'current-user',
+    type: notification.type,
+    title: notification.title,
+    body: notification.body,
+    payload: notification.payload,
     isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
-    payload: { orderNumber: 'DOK-2026-98124', amount: 1199 },
-  },
-  {
-    id: 'notif-2',
-    userId: 'user-customer-1',
-    type: 'ORDER',
-    title: 'Order Shipped via Express DHL',
-    body: 'Package is in transit with tracking #DHL-9920148. Estimated arrival in 2 days.',
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
-    payload: { trackingNumber: 'DHL-9920148' },
-  },
-  {
-    id: 'notif-3',
-    userId: 'user-customer-1',
-    type: 'CHAT',
-    title: 'New Message from Apple Zone',
-    body: 'Hello! Yes, the iPhone 15 Pro Max Natural Titanium is in stock...',
-    isRead: true,
-    createdAt: new Date(Date.now() - 1000 * 60 * 55).toISOString(),
-    payload: { conversationId: 'conv-apple-zone-1' },
-  },
-  {
-    id: 'notif-4',
-    userId: 'user-customer-1',
-    type: 'SUBSCRIPTION',
-    title: 'SaaS PRO Plan Activated',
-    body: 'Welcome to DokanOS PRO! Unlimited listings and AI Seller Copilot are now unlocked.',
-    isRead: true,
-    createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
-  },
-];
+    createdAt: new Date().toISOString(),
+  };
+  const nextList = [newNotif, ...localNotifications];
+  saveLocalNotifications(nextList);
+  return newNotif;
+}
 
 export async function fetchConversations(): Promise<ConversationItem[]> {
   try {
@@ -2145,16 +2475,50 @@ export async function fetchUserNotifications(): Promise<{
   unreadCount: number;
 }> {
   try {
-    const res = await fetch(`${API_BASE_URL}/notifications`);
+    let token = '';
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('dokanos_session');
+        if (raw) {
+          const session = JSON.parse(raw);
+          if (session?.accessToken) token = session.accessToken;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const res = await fetch(`${API_BASE_URL}/notifications`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
     if (res.ok) {
       const json = await res.json();
-      return {
-        notifications: json.data || json,
-        unreadCount: json.meta?.unreadCount ?? 0,
-      };
+      const serverNotifs = json.data || json;
+      if (Array.isArray(serverNotifs) && serverNotifs.length > 0) {
+        saveLocalNotifications(serverNotifs);
+        return {
+          notifications: serverNotifs,
+          unreadCount: json.meta?.unreadCount ?? serverNotifs.filter((n: any) => !n.isRead).length,
+        };
+      }
     }
   } catch {
-    // Fallback
+    // Fallback to locally tracked system notifications
+  }
+
+  // Refresh from storage if available
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('dokanos_notifications');
+      if (stored) {
+        localNotifications = JSON.parse(stored);
+      }
+    } catch {
+      // ignore
+    }
   }
 
   const unreadCount = localNotifications.filter((n) => !n.isRead).length;
@@ -2166,36 +2530,85 @@ export async function fetchUserNotifications(): Promise<{
 
 export async function markNotificationAsRead(id: string) {
   try {
+    let token = '';
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('dokanos_session');
+        if (raw) {
+          const session = JSON.parse(raw);
+          if (session?.accessToken) token = session.accessToken;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     const res = await fetch(`${API_BASE_URL}/notifications/${id}/read`, {
       method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
     });
-    if (res.ok) return await res.json();
+    if (res.ok) {
+      const updatedList = localNotifications.map((n) =>
+        n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n,
+      );
+      saveLocalNotifications(updatedList);
+      return await res.json();
+    }
   } catch {
     // Fallback
   }
 
-  const notif = localNotifications.find((n) => n.id === id);
-  if (notif) {
-    notif.isRead = true;
-    notif.readAt = new Date().toISOString();
-  }
+  const updatedList = localNotifications.map((n) =>
+    n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n,
+  );
+  saveLocalNotifications(updatedList);
   return { success: true };
 }
 
 export async function markAllNotificationsAsRead() {
   try {
+    let token = '';
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('dokanos_session');
+        if (raw) {
+          const session = JSON.parse(raw);
+          if (session?.accessToken) token = session.accessToken;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     const res = await fetch(`${API_BASE_URL}/notifications/read-all`, {
       method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
     });
-    if (res.ok) return await res.json();
+    if (res.ok) {
+      const updatedList = localNotifications.map((n) => ({
+        ...n,
+        isRead: true,
+        readAt: new Date().toISOString(),
+      }));
+      saveLocalNotifications(updatedList);
+      return await res.json();
+    }
   } catch {
     // Fallback
   }
 
-  localNotifications.forEach((n) => {
-    n.isRead = true;
-    n.readAt = new Date().toISOString();
-  });
+  const updatedList = localNotifications.map((n) => ({
+    ...n,
+    isRead: true,
+    readAt: new Date().toISOString(),
+  }));
+  saveLocalNotifications(updatedList);
   return { success: true };
 }
 

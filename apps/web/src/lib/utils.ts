@@ -21,3 +21,23 @@ export function formatDate(date: string | Date | null | undefined): string {
     year: 'numeric',
   }).format(new Date(date));
 }
+
+export function getCategoryName(category: unknown): string {
+  if (!category) return 'General';
+  if (typeof category === 'string') return category;
+  if (typeof category === 'object' && category !== null) {
+    const cat = category as Record<string, unknown>;
+    return String(cat.name || cat.slug || cat.title || 'General');
+  }
+  return String(category);
+}
+
+export function getStoreName(store: unknown): string {
+  if (!store) return 'Verified Vendor';
+  if (typeof store === 'string') return store;
+  if (typeof store === 'object' && store !== null) {
+    const s = store as Record<string, unknown>;
+    return String(s.name || s.slug || s.title || 'Verified Vendor');
+  }
+  return String(store);
+}

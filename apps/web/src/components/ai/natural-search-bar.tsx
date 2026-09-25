@@ -15,7 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { executeNaturalSearch, NaturalSearchResponse } from '@/lib/api-client';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, getCategoryName } from '@/lib/utils';
 import { useCart } from '@/lib/cart-context';
 
 export function NaturalSearchBar() {
@@ -139,7 +139,7 @@ export function NaturalSearchBar() {
             {result.extractedIntent.category && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-white border border-indigo-200 text-indigo-800 rounded-full text-xs font-medium">
                 <Tag className="w-3 h-3 text-indigo-500" />
-                Category: {result.extractedIntent.category}
+                Category: {getCategoryName(result.extractedIntent.category)}
               </span>
             )}
 
@@ -189,7 +189,7 @@ export function NaturalSearchBar() {
                     )}
                   </div>
                   <span className="text-[10px] uppercase font-bold text-indigo-600">
-                    {p.category}
+                    {getCategoryName(p.category)}
                   </span>
                   <h5 className="text-xs font-semibold text-gray-900 line-clamp-1">{p.title}</h5>
                   <p className="text-[11px] text-gray-500 mt-1 line-clamp-2">

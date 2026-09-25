@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { Navbar } from '@/components/navbar';
 import { Footer } from '@/components/footer';
-import { formatPrice, formatDate } from '@/lib/utils';
+import { formatPrice, formatDate, getStoreName } from '@/lib/utils';
 
 interface OrderItem {
   id: string;
@@ -338,7 +338,7 @@ export default function OrdersPage() {
                             )}
                             <div className="flex items-center gap-1 text-[11px] text-zinc-400 mt-0.5">
                               <Store className="w-3 h-3" />
-                              <span>{item.storeName}</span>
+                              <span>{getStoreName(item.storeName || (item as any).store)}</span>
                             </div>
                           </div>
                         </div>

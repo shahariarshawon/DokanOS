@@ -8,7 +8,7 @@ import {
   PersonalizedRecommendationItem,
   PersonalizedRecommendationsResponse,
 } from '@/lib/api-client';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, getCategoryName } from '@/lib/utils';
 import { useCart } from '@/lib/cart-context';
 
 export function PersonalizedRecommendationsSection({ limit = 6 }: { limit?: number }) {
@@ -143,7 +143,7 @@ export function PersonalizedRecommendationsSection({ limit = 6 }: { limit?: numb
 
               {/* Title & Category */}
               <span className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold block mb-0.5">
-                {item.category}
+                {getCategoryName(item.category)}
               </span>
               <h4 className="text-xs sm:text-sm font-semibold text-gray-900 line-clamp-2 leading-snug group-hover:text-indigo-600 transition-colors">
                 {item.title}

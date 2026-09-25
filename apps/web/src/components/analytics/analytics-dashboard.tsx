@@ -57,7 +57,7 @@ import {
   AdminAnalyticsData,
   AiInsightData,
 } from '@/lib/api-client';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, getCategoryName } from '@/lib/utils';
 
 interface AnalyticsDashboardProps {
   onNotify?: (message: string) => void;
@@ -184,7 +184,7 @@ export function AnalyticsDashboard({
               Commercial Analytics & Business Intelligence
             </h2>
             <span className="rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
-              Phase 8 Enterprise
+              Enterprise Intelligence
             </span>
           </div>
           <p className="text-xs text-zinc-500 mt-1">
@@ -621,7 +621,9 @@ export function AnalyticsDashboard({
                           <span className="block text-[10px] text-zinc-400 font-mono">{p.sku}</span>
                         )}
                       </td>
-                      <td className="py-3.5 px-4 font-sans text-zinc-600">{p.category}</td>
+                      <td className="py-3.5 px-4 font-sans text-zinc-600">
+                        {getCategoryName(p.category)}
+                      </td>
                       <td className="py-3.5 px-4 font-bold text-zinc-900">
                         {formatPrice(p.price)}
                       </td>

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { CartProvider } from '@/lib/cart-context';
+import { AuthProvider } from '@/lib/auth-context';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -22,16 +23,16 @@ export const metadata: Metadata = {
     template: '%s | DokanOS',
   },
   description:
-    'Production-grade AI-powered multi-vendor commerce platform with autonomous catalog optimization, pgvector recommendations, natural language search, and real-time inventory management.',
+    'Enterprise-grade multi-vendor commerce platform with autonomous AI search, verified vendor inventory, and real-time merchant storefronts.',
   keywords: [
     'DokanOS',
     'ecommerce platform',
     'multi-vendor marketplace',
     'AI commerce SaaS',
-    'FastAPI LangChain',
-    'NestJS ecommerce',
-    'pgvector recommendations',
-    'Next.js commerce',
+    'online marketplace',
+    'merchant storefronts',
+    'vendor catalog management',
+    'retail platform',
   ],
   authors: [{ name: 'DokanOS Engineering Team' }],
   creator: 'DokanOS Architecture',
@@ -75,6 +76,14 @@ export const metadata: Metadata = {
   alternates: {
     canonical: siteUrl,
   },
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    apple: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    shortcut: ['/icon.svg'],
+  },
 };
 
 const structuredData = {
@@ -114,7 +123,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
       </head>
-      <body className="min-h-full flex flex-col bg-zinc-50/70 text-zinc-900 selection:bg-indigo-600 selection:text-white">
+      <body
+        suppressHydrationWarning
+        className="min-h-full flex flex-col bg-zinc-50/70 text-zinc-900 selection:bg-indigo-600 selection:text-white"
+      >
         {/* Accessibility skip to content link */}
         <a
           href="#main-content"
@@ -122,7 +134,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           Skip to main content
         </a>
-        <CartProvider>{children}</CartProvider>
+        <AuthProvider>
+          <CartProvider>{children}</CartProvider>
+        </AuthProvider>
       </body>
     </html>
   );

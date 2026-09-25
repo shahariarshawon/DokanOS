@@ -19,7 +19,7 @@ import {
 import { Navbar } from '@/components/navbar';
 import { Footer } from '@/components/footer';
 import { useCart } from '@/lib/cart-context';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, getStoreName } from '@/lib/utils';
 
 export default function CartPage() {
   const router = useRouter();
@@ -50,12 +50,16 @@ export default function CartPage() {
   // Group items by vendor store for multi-vendor checkout experience (Part 6)
   const itemsByStore = items.reduce(
     (acc, item) => {
-      const storeId = item.product.storeId || 'default-store';
-      const storeName = item.product.storeName || 'Verified Vendor';
+      const storeId = item.product.storeId || (item.product as any).store?.id || 'default-store';
+      const storeName = getStoreName(item.product.storeName || (item.product as any).store);
       if (!acc[storeId]) {
         acc[storeId] = {
           storeName,
-          storeSlug: item.product.storeSlug,
+          storeSlug:
+            item.product.storeSlug ||
+            (typeof (item.product as any).store === 'object'
+              ? (item.product as any).store?.slug
+              : 'store'),
           items: [],
         };
       }

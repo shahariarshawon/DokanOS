@@ -16,7 +16,7 @@ import {
 import { sendShoppingChat } from '@/lib/api-client';
 import { useCart } from '@/lib/cart-context';
 import { Product } from '@/lib/mock-data';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, getCategoryName, getStoreName } from '@/lib/utils';
 
 interface ChatMessage {
   id: string;
@@ -142,8 +142,12 @@ export function AIShoppingAssistantWidget() {
       slug: product.slug || product.id,
       description: 'AI Recommended marketplace product.',
       price: parseFloat(product.price) || 99,
-      category: product.categoryName || 'Marketplace',
-      categorySlug: (product.categoryName || 'marketplace').toLowerCase().replace(/\s+/g, '-'),
+      category: getCategoryName(product.category || product.categoryName),
+      categorySlug: (
+        product.categorySlug || getCategoryName(product.category || product.categoryName)
+      )
+        .toLowerCase()
+        .replace(/\s+/g, '-'),
       sku: `AI-${product.id}`,
       stock: 50,
       lowStockThreshold: 5,
@@ -157,7 +161,7 @@ export function AIShoppingAssistantWidget() {
           'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=800&auto=format&fit=crop&q=80',
       ],
       storeId: 'store-1',
-      storeName: product.storeName || 'DokanOS Verified Store',
+      storeName: getStoreName(product.storeName || product.store),
       storeSlug: 'dokanos-store',
       storeRating: 5.0,
       variants: [],

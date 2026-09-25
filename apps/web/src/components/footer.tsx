@@ -1,6 +1,8 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
-import { ShieldCheck, Zap, RefreshCw, Globe, ArrowUpRight } from 'lucide-react';
+import { ShieldCheck, Zap, Globe, Mail, Phone, MapPin } from 'lucide-react';
 
 export function Footer() {
   return (
@@ -18,20 +20,20 @@ export function Footer() {
               </span>
             </div>
             <p className="text-xs text-zinc-500 max-w-sm mb-4 leading-relaxed">
-              Enterprise-grade multi-vendor commerce platform. Built with autonomous AI search,
-              transactional variant inventories, and real-time vendor telemetry.
+              Enterprise-grade multi-vendor commerce platform empowering verified merchants and
+              customers with seamless storefronts, order tracking, and secure global payments.
             </p>
-            <div className="flex items-center gap-3 text-zinc-400">
-              <span className="flex items-center gap-1 text-[11px]">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Escrow Protected
+            <div className="flex items-center gap-4 text-zinc-400">
+              <span className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-600">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Buyer Protection
               </span>
-              <span className="flex items-center gap-1 text-[11px]">
-                <Zap className="w-3.5 h-3.5 text-indigo-600" /> Real-time Sync
+              <span className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-600">
+                <Zap className="w-3.5 h-3.5 text-indigo-600" /> Instant Fulfillment
               </span>
             </div>
           </div>
 
-          {/* Catalog */}
+          {/* Marketplace */}
           <div>
             <h4 className="font-semibold text-zinc-900 mb-3 text-xs uppercase tracking-wider">
               Marketplace
@@ -69,65 +71,80 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Sellers */}
+          {/* Company */}
           <div>
             <h4 className="font-semibold text-zinc-900 mb-3 text-xs uppercase tracking-wider">
-              Sellers
+              Company
             </h4>
             <ul className="space-y-2 text-zinc-500">
               <li>
-                <Link href="/dashboard" className="hover:text-zinc-900 transition-colors">
-                  Seller Portal
+                <Link href="/pricing" className="hover:text-zinc-900 transition-colors">
+                  Plans & Pricing
                 </Link>
               </li>
-              <li>
-                <Link
-                  href="/dashboard?tab=inventory"
-                  className="hover:text-zinc-900 transition-colors"
-                >
-                  Inventory Manager
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/dashboard?tab=orders"
-                  className="hover:text-zinc-900 transition-colors"
-                >
-                  Fulfillment Hub
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Platform */}
-          <div>
-            <h4 className="font-semibold text-zinc-900 mb-3 text-xs uppercase tracking-wider">
-              Platform
-            </h4>
-            <ul className="space-y-2 text-zinc-500">
               <li>
                 <Link href="/orders" className="hover:text-zinc-900 transition-colors">
                   Track Orders
                 </Link>
               </li>
               <li>
-                <Link href="/cart" className="hover:text-zinc-900 transition-colors">
-                  Shopping Cart
+                <Link href="/seller/dashboard" className="hover:text-zinc-900 transition-colors">
+                  Merchant Portal
                 </Link>
               </li>
               <li>
-                <span className="text-zinc-400">API Documentation</span>
+                <Link href="/cart" className="hover:text-zinc-900 transition-colors">
+                  Shopping Basket
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Legal & Trust */}
+          <div>
+            <h4 className="font-semibold text-zinc-900 mb-3 text-xs uppercase tracking-wider">
+              Support & Legal
+            </h4>
+            <ul className="space-y-2 text-zinc-500">
+              <li>
+                <Link href="/inbox" className="hover:text-zinc-900 transition-colors">
+                  Contact Support
+                </Link>
+              </li>
+              <li>
+                <span className="text-zinc-500 hover:text-zinc-900 cursor-pointer transition-colors">
+                  Privacy Policy
+                </span>
+              </li>
+              <li>
+                <span className="text-zinc-500 hover:text-zinc-900 cursor-pointer transition-colors">
+                  Terms & Conditions
+                </span>
+              </li>
+              <li>
+                <span className="text-zinc-500 hover:text-zinc-900 cursor-pointer transition-colors">
+                  Buyer Guarantee
+                </span>
               </li>
             </ul>
           </div>
         </div>
 
+        {/* Clean Corporate Copyright Bar */}
         <div className="border-t border-zinc-100 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-zinc-400">
-          <p>© {new Date().getFullYear()} DokanOS Inc. All rights reserved.</p>
-          <div className="flex items-center gap-4">
-            <span>Next.js 16 + NestJS 12 Modular Monolith</span>
+          <p>© {new Date().getFullYear()} DokanOS. All rights reserved.</p>
+          <div className="flex items-center gap-6">
+            <span className="hover:text-zinc-600 transition-colors cursor-pointer">
+              Privacy Policy
+            </span>
             <span>•</span>
-            <span>PostgreSQL + pgvector</span>
+            <span className="hover:text-zinc-600 transition-colors cursor-pointer">
+              Terms of Service
+            </span>
+            <span>•</span>
+            <span className="hover:text-zinc-600 transition-colors cursor-pointer">
+              Security Compliance
+            </span>
           </div>
         </div>
       </div>

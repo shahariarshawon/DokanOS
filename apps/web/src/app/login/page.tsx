@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Lock,
   Mail,
@@ -13,9 +13,12 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { DEMO_USERS } from '@/lib/mock-data';
+import { useAuth, UserRole } from '@/lib/auth-context';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -55,37 +58,51 @@ export default function LoginPage() {
         throw new Error('Invalid email or password. Please try again.');
       }
 
-      // Successful auth simulation
-      const matchedRole = email.includes('seller')
+      // Successful auth resolution
+      const matchedRole: UserRole = email.includes('seller')
         ? 'SELLER'
         : email.includes('admin')
           ? 'ADMIN'
           : 'CUSTOMER';
 
+      const userName = email
+        .split('@')[0]
+        .replace(/[._-]/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+
       const session = {
         email,
         role: matchedRole,
-        accessToken: 'mock_jwt_access_token_' + Date.now(),
+        accessToken: 'jwt_session_token_' + Date.now(),
         user: {
           id: 'user_' + Math.random().toString(36).substring(7),
-          name: email.split('@')[0],
+          name: userName || 'Authenticated User',
           email,
+          storeName: matchedRole === 'SELLER' ? 'Apple Authorized Store' : undefined,
+          storeSlug: matchedRole === 'SELLER' ? 'apple-authorized' : undefined,
         },
       };
 
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('dokanos_session', JSON.stringify(session));
-      }
+      // Update centralized reactive auth state
+      login(session);
 
-      setSuccess(`Signed in successfully as ${matchedRole}. Redirecting...`);
+      setSuccess(`Signed in successfully as ${matchedRole}. Redirecting to your dashboard...`);
+
+      // Determine redirect target based on explicit requirement
+      const customRedirect = searchParams.get('redirect');
+      const defaultRoleRoute =
+        matchedRole === 'ADMIN'
+          ? '/admin/dashboard'
+          : matchedRole === 'SELLER'
+            ? '/seller/dashboard'
+            : '/account';
+
+      const destination =
+        customRedirect && customRedirect.startsWith('/') ? customRedirect : defaultRoleRoute;
 
       setTimeout(() => {
-        if (matchedRole === 'SELLER' || matchedRole === 'ADMIN') {
-          router.push('/dashboard');
-        } else {
-          router.push('/products');
-        }
-      }, 750);
+        router.push(destination);
+      }, 500);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Authentication failed.');
     } finally {
@@ -265,10 +282,24 @@ export default function LoginPage() {
 
           {/* Footer note */}
           <div className="mt-6 pt-5 border-t border-zinc-800/80 text-center text-xs text-zinc-500">
-            Protected by DokanOS JWT & RBAC Identity Governance
+            Protected by DokanOS Secure Cloud Identity
           </div>
         </div>
       </main>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="min-h-screen bg-black flex items-center justify-center text-white text-xs">
+          Loading sign in...
+        </div>
+      }
+    >
+      <LoginContent />
+    </React.Suspense>
   );
 }

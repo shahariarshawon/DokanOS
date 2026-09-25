@@ -52,9 +52,22 @@ export function NotificationBellDropdown() {
       .catch(() => {});
 
     const interval = setInterval(loadNotifications, 15000);
+
+    const handleSync = () => {
+      loadNotifications();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('dokanos_notifications_change', handleSync);
+      window.addEventListener('storage', handleSync);
+    }
+
     return () => {
       mounted = false;
       clearInterval(interval);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('dokanos_notifications_change', handleSync);
+        window.removeEventListener('storage', handleSync);
+      }
     };
   }, []);
 

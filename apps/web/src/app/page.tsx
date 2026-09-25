@@ -24,7 +24,7 @@ import { PersonalizedRecommendationsSection } from '@/components/ai/personalized
 import { fetchProducts } from '@/lib/api-client';
 import { Product, CATEGORIES } from '@/lib/mock-data';
 import { useCart } from '@/lib/cart-context';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, getStoreName } from '@/lib/utils';
 
 export default function HomePage() {
   const router = useRouter();
@@ -237,7 +237,7 @@ export default function HomePage() {
                         <div className="flex items-center justify-between text-[11px] text-zinc-500 mb-1.5">
                           <span className="flex items-center gap-1 font-medium text-zinc-700">
                             <Store className="w-3 h-3 text-zinc-400" />
-                            {product.storeName}
+                            {getStoreName((product as any).storeName || (product as any).store)}
                           </span>
                           <div className="flex items-center gap-1 text-amber-500 font-medium">
                             <Star className="w-3 h-3 fill-amber-400" />
@@ -330,7 +330,7 @@ export default function HomePage() {
 
               <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                 <Link
-                  href="/dashboard"
+                  href="/seller/dashboard"
                   className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-6 py-3 text-xs sm:text-sm font-semibold text-white transition-colors shadow-xs"
                 >
                   <span>Launch Seller Portal</span>

@@ -33,7 +33,7 @@ import {
   fetchProducts,
 } from '@/lib/api-client';
 import { Product } from '@/lib/mock-data';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, getCategoryName } from '@/lib/utils';
 
 export function AISalesCopilot() {
   const [activeTab, setActiveTab] = useState<'sales' | 'optimizer' | 'fraud' | 'automation'>(
@@ -455,7 +455,7 @@ export function AISalesCopilot() {
               >
                 {products.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.title} ({formatPrice(p.price)}) - {p.category}
+                    {p.title} ({formatPrice(p.price)}) - {getCategoryName(p.category)}
                   </option>
                 ))}
               </select>

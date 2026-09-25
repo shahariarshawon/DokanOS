@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product, ProductVariant, CartItem, MOCK_PRODUCTS } from './mock-data';
 
 interface CartContextType {
@@ -11,36 +11,48 @@ interface CartContextType {
   clearCart: () => void;
   itemCount: number;
   subtotal: number;
+  isLoaded: boolean;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('dokanos_cart');
-        if (stored) {
-          return JSON.parse(stored);
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('dokanos_cart');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setItems(parsed);
+          setIsLoaded(true);
+          return;
         }
-      } catch {
-        // ignore
       }
+    } catch {
+      // ignore
     }
+
+    // Default sample item if cart is empty on first visit
     const defaultProd = MOCK_PRODUCTS[0];
-    const defaultVariant = defaultProd.variants[0];
-    return [
-      {
-        id: `${defaultProd.id}-${defaultVariant?.id ?? 'base'}`,
-        productId: defaultProd.id,
-        product: defaultProd,
-        variantId: defaultVariant?.id,
-        variant: defaultVariant,
-        quantity: 1,
-        unitPrice: defaultVariant?.price ?? defaultProd.price,
-      },
-    ];
-  });
+    const defaultVariant = defaultProd?.variants?.[0];
+    if (defaultProd) {
+      setItems([
+        {
+          id: `${defaultProd.id}-${defaultVariant?.id ?? 'base'}`,
+          productId: defaultProd.id,
+          product: defaultProd,
+          variantId: defaultVariant?.id,
+          variant: defaultVariant,
+          quantity: 1,
+          unitPrice: defaultVariant?.price ?? defaultProd.price,
+        },
+      ]);
+    }
+    setIsLoaded(true);
+  }, []);
 
   const saveItems = (newItems: CartItem[]) => {
     setItems(newItems);
@@ -116,6 +128,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         clearCart,
         itemCount,
         subtotal,
+        isLoaded,
       }}
     >
       {children}
