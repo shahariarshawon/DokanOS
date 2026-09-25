@@ -11,6 +11,7 @@ import {
   Package,
   Layers,
   ArrowRight,
+  Sparkles,
 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { AIShoppingAssistantWidget } from './ai-shopping-assistant';
@@ -21,6 +22,7 @@ export function Navbar() {
 
   const navLinks = [
     { name: 'Storefront', href: '/products', icon: Layers },
+    { name: 'Pricing & Plans', href: '/pricing', icon: Sparkles },
     { name: 'My Orders', href: '/orders', icon: Package },
     { name: 'Seller Dashboard', href: '/dashboard', icon: LayoutDashboard },
   ];

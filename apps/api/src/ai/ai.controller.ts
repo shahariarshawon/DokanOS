@@ -27,6 +27,10 @@ import { HybridSearchDto } from './dto/hybrid-search.dto.js';
 import { Public } from '../common/decorators/public.decorator.js';
 import { Roles } from '../common/decorators/roles.decorator.js';
 import { RolesGuard } from '../common/guards/roles.guard.js';
+import {
+  SubscriptionGuard,
+  RequireFeature,
+} from '../common/guards/subscription.guard.js';
 
 @ApiTags('AI Intelligence')
 @Controller('ai')
@@ -51,12 +55,13 @@ export class AiController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(RolesGuard)
+  @UseGuards(RolesGuard, SubscriptionGuard)
   @Roles('SELLER', 'ADMIN')
+  @RequireFeature('AI Copilot & Product Vision Analyzer')
   @ApiOperation({
     summary: 'AI Seller Assistant (Description, Marketing Text & SEO Copilot)',
     description:
-      'Generates high-converting markdown product descriptions, SEO keywords, punchy marketing promotional copy, meta tags, and category tags.',
+      'Generates high-converting markdown product descriptions, SEO keywords, punchy marketing promotional copy, meta tags, and category tags. Restricted to PRO plan subscribers.',
   })
   @ApiResponse({
     status: 200,

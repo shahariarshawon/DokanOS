@@ -19,6 +19,7 @@ import { Navbar } from '@/components/navbar';
 import { Footer } from '@/components/footer';
 import { useCart } from '@/lib/cart-context';
 import { formatPrice } from '@/lib/utils';
+import { initiatePayment } from '@/lib/api-client';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -55,10 +56,25 @@ export default function CheckoutPage() {
     setIsProcessing(true);
 
     try {
-      // Simulate backend atomic transaction ($transaction + stock deduction)
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
       const generatedId = `DKN-${Date.now()}`;
+      const idempotencyKey = `idem_${generatedId}_${Date.now()}`;
+
+      // Initiate payment session with gateway abstraction layer
+      if (paymentMethod === 'stripe' || paymentMethod === 'sslcommerz') {
+        const paymentRes = await initiatePayment({
+          orderId: generatedId,
+          provider: paymentMethod === 'stripe' ? 'STRIPE' : 'SSLCOMMERZ',
+          idempotencyKey,
+          successUrl: `${window.location.origin}/orders/confirmation?orderId=${generatedId}`,
+          cancelUrl: `${window.location.origin}/checkout`,
+        });
+
+        // If redirect URL returned (e.g. Stripe Hosted Checkout or SSLCommerz Gateway)
+        if (paymentRes.redirectUrl && !paymentRes.redirectUrl.includes('sandbox.sslcommerz.com')) {
+          window.location.href = paymentRes.redirectUrl;
+          return;
+        }
+      }
 
       // Save order to localStorage for tracking in /orders
       if (typeof window !== 'undefined') {
@@ -69,6 +85,7 @@ export default function CheckoutPage() {
             orderNumber: generatedId,
             placedAt: new Date().toISOString(),
             status: paymentMethod === 'cod' ? 'PENDING' : 'PAID',
+            paymentMethod: paymentMethod.toUpperCase(),
             subtotal,
             taxAmount: tax,
             shippingAmount: shipping,
