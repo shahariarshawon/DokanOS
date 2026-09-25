@@ -20,6 +20,7 @@ import { RedisModule } from './common/redis/redis.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { ChatModule } from './chat/chat.module.js';
 import { AnalyticsModule } from './analytics/analytics.module.js';
+import { InventoryModule } from './inventory/inventory.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 
@@ -37,6 +38,7 @@ import { AppService } from './app.service.js';
     StoresModule,
     CategoriesModule,
     ProductsModule,
+    InventoryModule,
     CartModule,
     OrdersModule,
     PaymentsModule,

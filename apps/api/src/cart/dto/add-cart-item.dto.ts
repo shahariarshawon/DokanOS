@@ -18,6 +18,14 @@ export class AddCartItemDto {
   @IsNotEmpty()
   productId!: string;
 
+  @ApiPropertyOptional({
+    example: '748cb6f2-b9fd-4587-92bf-62d14a3f5ac1',
+    description: 'Optional ProductVariant UUID',
+  })
+  @IsUUID('4', { message: 'variantId must be a valid UUID' })
+  @IsOptional()
+  variantId?: string;
+
   @ApiProperty({ example: 1, default: 1, minimum: 1 })
   @Type(() => Number)
   @IsInt()

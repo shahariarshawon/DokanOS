@@ -28,6 +28,16 @@ export class CartService {
                 },
               },
             },
+            variant: {
+              select: {
+                id: true,
+                title: true,
+                sku: true,
+                price: true,
+                attributes: true,
+                stockQuantity: true,
+              },
+            },
           },
           orderBy: { createdAt: 'desc' },
         },
@@ -46,6 +56,16 @@ export class CartService {
                   store: { select: { id: true, name: true, slug: true } },
                 },
               },
+              variant: {
+                select: {
+                  id: true,
+                  title: true,
+                  sku: true,
+                  price: true,
+                  attributes: true,
+                  stockQuantity: true,
+                },
+              },
             },
             orderBy: { createdAt: 'desc' },
           },
@@ -56,37 +76,69 @@ export class CartService {
     // Compute subtotal and evaluate stock availability dynamically
     let subtotal = new Prisma.Decimal(0);
     let totalItems = 0;
+    const storeMap = new Map<
+      string,
+      {
+        store: { id: string; name: string; slug: string };
+        items: any[];
+        subtotal: Prisma.Decimal;
+      }
+    >();
 
     const formattedItems = cart.items.map((item) => {
-      const unitPrice = item.product.price;
+      const unitPrice = item.variant?.price ?? item.product.price;
       const itemTotal = unitPrice.mul(item.quantity);
       subtotal = subtotal.add(itemTotal);
       totalItems += item.quantity;
 
-      const inStock =
-        item.product.status === 'ACTIVE' &&
-        item.product.stockQuantity >= item.quantity;
+      const availableQuantity = item.variant
+        ? item.variant.stockQuantity
+        : item.product.stockQuantity;
 
-      return {
+      const inStock =
+        item.product.status === 'ACTIVE' && availableQuantity >= item.quantity;
+
+      const formatted = {
         id: item.id,
         productId: item.productId,
+        variantId: item.variantId,
         productTitle: item.product.title,
+        variantTitle: item.variant?.title ?? null,
         productSlug: item.product.slug,
-        unitPrice: item.product.price,
+        sku: item.variant?.sku ?? item.product.sku,
+        unitPrice,
         quantity: item.quantity,
         totalItemPrice: itemTotal,
-        selectedAttributes: item.selectedAttributes,
+        selectedAttributes: item.variant?.attributes ?? item.selectedAttributes,
         inStock,
-        availableQuantity: item.product.stockQuantity,
+        availableQuantity,
         primaryImage: item.product.images[0]?.url ?? null,
         store: item.product.store,
       };
+
+      // Group by store for multi-vendor checkout presentation
+      const storeId = item.product.store.id;
+      if (!storeMap.has(storeId)) {
+        storeMap.set(storeId, {
+          store: item.product.store,
+          items: [],
+          subtotal: new Prisma.Decimal(0),
+        });
+      }
+      const storeGroup = storeMap.get(storeId)!;
+      storeGroup.items.push(formatted);
+      storeGroup.subtotal = storeGroup.subtotal.add(itemTotal);
+
+      return formatted;
     });
+
+    const stores = Array.from(storeMap.values());
 
     return {
       id: cart.id,
       userId: cart.userId,
       items: formattedItems,
+      stores,
       subtotal,
       totalItems,
       updatedAt: cart.updatedAt,
@@ -96,6 +148,7 @@ export class CartService {
   async addItem(userId: string, dto: AddCartItemDto) {
     const product = await this.prisma.product.findUnique({
       where: { id: dto.productId },
+      include: { variants: true },
     });
 
     if (!product || product.status === 'ARCHIVED') {
@@ -110,47 +163,64 @@ export class CartService {
       );
     }
 
+    let targetVariant = null;
+    if (dto.variantId) {
+      targetVariant = product.variants.find((v) => v.id === dto.variantId);
+      if (!targetVariant) {
+        throw new NotFoundException(
+          `Variant '${dto.variantId}' not found on product '${product.title}'`,
+        );
+      }
+    }
+
+    const availableStock = targetVariant
+      ? targetVariant.stockQuantity
+      : product.stockQuantity;
+
     const cart = await this.getOrCreateCart(userId);
 
-    // Check if item already exists in cart
-    const existingItem = await this.prisma.cartItem.findUnique({
+    // Check if item already exists in cart with this exact variant
+    const existingItem = await this.prisma.cartItem.findFirst({
       where: {
-        cartId_productId: {
-          cartId: cart.id,
-          productId: dto.productId,
-        },
+        cartId: cart.id,
+        productId: dto.productId,
+        variantId: dto.variantId ?? null,
       },
     });
 
     const newQuantity = (existingItem?.quantity ?? 0) + dto.quantity;
 
-    if (product.stockQuantity < newQuantity) {
+    if (availableStock < newQuantity) {
+      const name = targetVariant
+        ? `${product.title} (${targetVariant.title})`
+        : product.title;
       throw new BadRequestException(
-        `Insufficient stock for '${product.title}'. Only ${product.stockQuantity} available in inventory.`,
+        `Insufficient stock for '${name}'. Only ${availableStock} available in inventory.`,
       );
     }
 
-    await this.prisma.cartItem.upsert({
-      where: {
-        cartId_productId: {
+    if (existingItem) {
+      await this.prisma.cartItem.update({
+        where: { id: existingItem.id },
+        data: {
+          quantity: newQuantity,
+          selectedAttributes: dto.selectedAttributes
+            ? (dto.selectedAttributes as Prisma.InputJsonValue)
+            : undefined,
+        },
+      });
+    } else {
+      await this.prisma.cartItem.create({
+        data: {
           cartId: cart.id,
           productId: dto.productId,
+          variantId: dto.variantId ?? null,
+          quantity: dto.quantity,
+          selectedAttributes: (dto.selectedAttributes ??
+            {}) as Prisma.InputJsonValue,
         },
-      },
-      create: {
-        cartId: cart.id,
-        productId: dto.productId,
-        quantity: dto.quantity,
-        selectedAttributes: (dto.selectedAttributes ??
-          {}) as Prisma.InputJsonValue,
-      },
-      update: {
-        quantity: newQuantity,
-        selectedAttributes: dto.selectedAttributes
-          ? ((dto.selectedAttributes ?? {}) as Prisma.InputJsonValue)
-          : undefined,
-      },
-    });
+      });
+    }
 
     return this.getOrCreateCart(userId);
   }
@@ -160,7 +230,7 @@ export class CartService {
 
     const item = await this.prisma.cartItem.findFirst({
       where: { id: itemId, cartId: cart.id },
-      include: { product: true },
+      include: { product: true, variant: true },
     });
 
     if (!item) {
@@ -174,9 +244,16 @@ export class CartService {
       return this.getOrCreateCart(userId);
     }
 
-    if (item.product.stockQuantity < quantity) {
+    const availableStock = item.variant
+      ? item.variant.stockQuantity
+      : item.product.stockQuantity;
+
+    if (availableStock < quantity) {
+      const name = item.variant
+        ? `${item.product.title} (${item.variant.title})`
+        : item.product.title;
       throw new BadRequestException(
-        `Insufficient stock for '${item.product.title}'. Maximum available is ${item.product.stockQuantity}.`,
+        `Insufficient stock for '${name}'. Maximum available is ${availableStock}.`,
       );
     }
 

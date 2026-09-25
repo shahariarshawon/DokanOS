@@ -14,15 +14,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'DokanOS | Autonomous Multi-Vendor Marketplace',
+  title: 'DokanOS | AI-Powered Multi-Vendor Marketplace',
   description:
-    'Enterprise Multi-Vendor Commerce Platform with AI shopping assistant and real-time business intelligence.',
+    'Production-grade multi-vendor commerce platform with product variants, inventory audits, and seller operations.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-black text-zinc-100">
+      <body className="min-h-full flex flex-col bg-zinc-50/70 text-zinc-900 selection:bg-indigo-600 selection:text-white">
         <CartProvider>{children}</CartProvider>
       </body>
     </html>

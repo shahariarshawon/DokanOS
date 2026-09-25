@@ -14,6 +14,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { ProductStatus } from '@prisma/client';
+import { CreateVariantDto } from './create-variant.dto.js';
 
 export class ProductImageDto {
   @ApiProperty({
@@ -147,4 +148,14 @@ export class CreateProductDto {
   @Type(() => ProductImageDto)
   @IsOptional()
   images?: ProductImageDto[];
+
+  @ApiPropertyOptional({
+    type: () => [CreateVariantDto],
+    description: 'Product variants (e.g., color, storage, size configurations)',
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateVariantDto)
+  @IsOptional()
+  variants?: CreateVariantDto[];
 }

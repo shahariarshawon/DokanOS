@@ -57,6 +57,22 @@ describe('ProductsService (Backend Testing)', () => {
         create: vi.fn(),
         update: vi.fn(),
       },
+      productVariant: {
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      inventory: {
+        create: vi
+          .fn()
+          .mockResolvedValue({ id: 'inv-uuid-1', stockQuantity: 25 }),
+        update: vi.fn(),
+      },
+      inventoryTransaction: {
+        create: vi.fn().mockResolvedValue({ id: 'txn-uuid-1' }),
+      },
+      $transaction: vi.fn(async (cb) => cb(prisma)),
     };
 
     aiService = {

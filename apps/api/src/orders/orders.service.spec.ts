@@ -75,7 +75,15 @@ describe('OrdersService (Backend Testing)', () => {
       $transaction: vi.fn(),
     };
 
-    ordersService = new OrdersService(prisma as PrismaService);
+    const inventoryService = {
+      deductStock: vi.fn().mockResolvedValue(undefined),
+      restoreStock: vi.fn().mockResolvedValue(undefined),
+    };
+
+    ordersService = new OrdersService(
+      prisma as PrismaService,
+      inventoryService as any,
+    );
   });
 
   describe('Create Order From Cart Flow', () => {

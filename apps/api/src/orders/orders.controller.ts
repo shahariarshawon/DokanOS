@@ -13,6 +13,8 @@ import { OrdersService } from './orders.service.js';
 import { CreateOrderDto } from './dto/create-order.dto.js';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { Roles } from '../common/decorators/roles.decorator.js';
+import { UserRole } from '@prisma/client';
 
 @ApiTags('Orders')
 @ApiBearerAuth()
@@ -21,7 +23,8 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @ApiOperation({
-    summary: 'Create new order from user cart (atomic checkout)',
+    summary:
+      'Create new order from user cart (atomic checkout with inventory deduction)',
   })
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -38,7 +41,16 @@ export class OrdersController {
     return this.ordersService.getUserOrders(userId);
   }
 
-  @ApiOperation({ summary: 'Get order details by order ID' })
+  @ApiOperation({ summary: 'List incoming orders for seller storefronts' })
+  @Roles(UserRole.SELLER, UserRole.ADMIN)
+  @Get('seller')
+  async getSellerOrders(@CurrentUser('id') userId: string) {
+    return this.ordersService.getSellerOrders(userId);
+  }
+
+  @ApiOperation({
+    summary: 'Get order details and visual timeline by order ID',
+  })
   @Get(':id')
   async getOrderById(
     @CurrentUser('id') userId: string,
@@ -47,7 +59,10 @@ export class OrdersController {
     return this.ordersService.getOrderById(userId, orderId);
   }
 
-  @ApiOperation({ summary: 'Update order status or cancel order' })
+  @ApiOperation({
+    summary:
+      'Update order status (Accept order -> PROCESSING, Ship order -> SHIPPED, Deliver -> DELIVERED, Cancel)',
+  })
   @Patch(':id/status')
   async updateOrderStatus(
     @CurrentUser('id') userId: string,
