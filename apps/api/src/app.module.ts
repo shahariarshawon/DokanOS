@@ -21,6 +21,7 @@ import { NotificationsModule } from './notifications/notifications.module.js';
 import { ChatModule } from './chat/chat.module.js';
 import { AnalyticsModule } from './analytics/analytics.module.js';
 import { InventoryModule } from './inventory/inventory.module.js';
+import { UploadModule } from './common/upload/upload.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 
@@ -46,6 +47,7 @@ import { AppService } from './app.service.js';
     NotificationsModule,
     ChatModule,
     AnalyticsModule,
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [

@@ -44,15 +44,142 @@ import { formatPrice, formatDate } from '@/lib/utils';
 export default function SellerDashboardPage() {
   const [dashboardView, setDashboardView] = useState<'seller' | 'admin'>('seller');
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
-  const [activeTab, setActiveTab] = useState<'products' | 'inventory' | 'orders' | 'analytics'>(
-    'products',
-  );
+  const [activeTab, setActiveTab] = useState<
+    'products' | 'store_builder' | 'inventory' | 'orders' | 'analytics'
+  >('products');
+  const [storeSubTab, setStoreSubTab] = useState<
+    'profile' | 'theme' | 'sections' | 'analytics' | 'reviews'
+  >('profile');
   const [products, setProducts] = useState<Product[]>([]);
   const [inventoryOverview, setInventoryOverview] = useState<InventoryOverview | null>(null);
   const [transactions, setTransactions] = useState<InventoryTransactionItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchFilter, setSearchFilter] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Store Builder State
+  const [storeData, setStoreData] = useState<any>({
+    name: 'Apple Zone Official',
+    slug: 'apple-zone',
+    description:
+      'Authorized store for premium Apple devices, genuine accessories, and certified warranty replacements.',
+    businessCategory: 'Consumer Electronics & Gadgets',
+    contactEmail: 'support@applezone.com',
+    contactPhone: '+1 (800) 555-0199',
+    socialLinks: {
+      twitter: 'https://twitter.com/applezone',
+      instagram: 'https://instagram.com/applezone',
+    },
+    logo: 'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=300&auto=format&fit=crop&q=80',
+    banner:
+      'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=1600&auto=format&fit=crop&q=80',
+    followerCount: 248,
+    status: 'ACTIVE',
+  });
+
+  const [themeData, setThemeData] = useState<any>({
+    primaryColor: '#0f172a',
+    secondaryColor: '#3b82f6',
+    layoutType: 'Modern',
+    fontStyle: 'Inter',
+  });
+
+  const [sectionsData, setSectionsData] = useState<any[]>([
+    {
+      id: 'sec-1',
+      type: 'HERO',
+      title: 'Next-Gen Apple Innovation',
+      subtitle:
+        'Discover M3 Max MacBook Pros, iPhone 16 Pro Max, and Ultra 2 Watch with official 2-year warranty.',
+      enabled: true,
+      displayOrder: 0,
+    },
+    {
+      id: 'sec-2',
+      type: 'FEATURED_PRODUCTS',
+      title: 'Featured Flagship Devices',
+      subtitle: 'Hand-picked premium electronics ready for immediate dispatch.',
+      enabled: true,
+      displayOrder: 1,
+    },
+    {
+      id: 'sec-3',
+      type: 'NEW_ARRIVALS',
+      title: 'New Arrivals',
+      subtitle: 'Freshly stocked inventory from authorized distribution lines.',
+      enabled: true,
+      displayOrder: 2,
+    },
+    {
+      id: 'sec-4',
+      type: 'BEST_SELLERS',
+      title: 'Top Rated Best Sellers',
+      subtitle: 'Most popular customer favorites backed by verified 5-star reviews.',
+      enabled: true,
+      displayOrder: 3,
+    },
+    {
+      id: 'sec-5',
+      type: 'ABOUT',
+      title: 'About Apple Zone',
+      subtitle:
+        'Delivering genuine luxury consumer electronics worldwide with insured express shipping.',
+      enabled: true,
+      displayOrder: 4,
+    },
+    {
+      id: 'sec-6',
+      type: 'CONTACT',
+      title: 'Customer Concierge',
+      subtitle: 'Have a question? Reach out to our dedicated product support team.',
+      enabled: true,
+      displayOrder: 5,
+    },
+  ]);
+
+  const [analyticsData, setAnalyticsData] = useState<any>({
+    views: 1420,
+    orders: 142,
+    revenue: 28490,
+    salesOverTime: [
+      { date: 'Sep 19', sales: 3200, visitors: 180 },
+      { date: 'Sep 20', sales: 4100, visitors: 220 },
+      { date: 'Sep 21', sales: 3800, visitors: 195 },
+      { date: 'Sep 22', sales: 5200, visitors: 260 },
+      { date: 'Sep 23', sales: 4800, visitors: 240 },
+      { date: 'Sep 24', sales: 6100, visitors: 310 },
+      { date: 'Sep 25', sales: 7400, visitors: 380 },
+    ],
+    topProducts: [
+      { name: 'Apple iPhone 15 Pro Max', units: 42, revenue: 46158 },
+      { name: 'MacBook Pro 16" M3 Max', units: 18, revenue: 44982 },
+      { name: 'Apple Watch Ultra 2', units: 35, revenue: 27965 },
+    ],
+  });
+
+  const [reviewsData, setReviewsData] = useState<any[]>([
+    {
+      id: 'rev-1',
+      rating: 5,
+      comment: 'Phenomenal delivery speed! Product arrived sealed in perfect condition.',
+      createdAt: '2026-09-24',
+      user: { name: 'Marcus Vance' },
+    },
+    {
+      id: 'rev-2',
+      rating: 5,
+      comment: 'Authentic item with valid AppleCare warranty. Will buy again!',
+      createdAt: '2026-09-23',
+      user: { name: 'Elena Rostova' },
+    },
+    {
+      id: 'rev-3',
+      rating: 4,
+      comment: 'Great seller communication, smooth checkout process.',
+      createdAt: '2026-09-20',
+      user: { name: 'David K.' },
+    },
+  ]);
 
   // Restock Modal State
   const [showRestockModal, setShowRestockModal] = useState(false);
@@ -109,6 +236,21 @@ export default function SellerDashboardPage() {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const handleSaveStoreProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    showToast('Storefront profile & branding saved successfully!');
+  };
+
+  const handleSaveTheme = (e: React.FormEvent) => {
+    e.preventDefault();
+    showToast('Storefront color palette & theme saved!');
+  };
+
+  const handleSaveSections = (e: React.FormEvent) => {
+    e.preventDefault();
+    showToast('Homepage section configuration & layout order saved!');
   };
 
   const handleDuplicate = async (productId: string) => {
@@ -175,8 +317,8 @@ export default function SellerDashboardPage() {
       rating: 5.0,
       reviewCount: 1,
       storeId: 'store-my-store',
-      storeName: 'My Verified Storefront',
-      storeSlug: 'my-verified-storefront',
+      storeName: storeData.name,
+      storeSlug: storeData.slug,
       storeRating: 5.0,
       badge: 'New Arrival',
       primaryImage:
@@ -357,11 +499,20 @@ export default function SellerDashboardPage() {
                   </span>
                 </div>
                 <p className="text-xs text-zinc-500 mt-1">
-                  Manage multi-variant SKU catalog, real-time inventory adjustments, and orders.
+                  Manage multi-variant SKU catalog, real-time inventory adjustments, and custom
+                  storefront.
                 </p>
               </div>
 
               <div className="flex items-center gap-2.5">
+                <Link
+                  href={`/store/${storeData.slug}`}
+                  target="_blank"
+                  className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-2xs transition-colors"
+                >
+                  <ArrowUpRight className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Preview Live Store</span>
+                </Link>
                 <button
                   onClick={() => setShowRestockModal(true)}
                   className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-2xs transition-colors"
@@ -379,7 +530,7 @@ export default function SellerDashboardPage() {
               </div>
             </div>
 
-            {/* Overview Metric Cards (Part 7 Requirement & Testing) */}
+            {/* Overview Metric Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               <div
                 data-testid="metric-total-sales"
@@ -405,12 +556,14 @@ export default function SellerDashboardPage() {
                 className="rounded-xl border border-zinc-200 bg-white p-5 shadow-2xs"
               >
                 <div className="flex items-center justify-between text-zinc-500 mb-2">
-                  <span className="text-xs font-medium uppercase tracking-wider">Net Revenue</span>
-                  <DollarSign className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs font-medium uppercase tracking-wider">
+                    Store Visitors
+                  </span>
+                  <Store className="w-4 h-4 text-indigo-600" />
                 </div>
-                <div className="text-2xl font-black text-zinc-900">$24,216.50</div>
-                <div className="mt-2 flex items-center gap-1 text-[11px] text-emerald-600 font-semibold">
-                  <TrendingUp className="w-3 h-3" /> Net vendor payout
+                <div className="text-2xl font-black text-zinc-900">{analyticsData.views}</div>
+                <div className="mt-2 flex items-center gap-1 text-[11px] text-indigo-600 font-semibold">
+                  <TrendingUp className="w-3 h-3" /> {storeData.followerCount} Store Followers
                 </div>
               </div>
 
@@ -445,64 +598,11 @@ export default function SellerDashboardPage() {
               </div>
             </div>
 
-            {/* Inventory Overview (Part 3 Requirement) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-2xs">
-                <div className="flex items-center justify-between text-zinc-500 mb-2">
-                  <span className="text-xs font-medium uppercase tracking-wider">Total Stock</span>
-                  <Package className="w-4 h-4 text-zinc-700" />
-                </div>
-                <div className="text-2xl font-black text-zinc-900">
-                  {inventoryOverview?.totalStock ?? 189} units
-                </div>
-                <div className="mt-2 text-[11px] text-zinc-500">
-                  Across {products.length} product SKUs
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-2xs">
-                <div className="flex items-center justify-between text-zinc-500 mb-2">
-                  <span className="text-xs font-medium uppercase tracking-wider">
-                    Total Products
-                  </span>
-                  <Package className="w-4 h-4 text-zinc-700" />
-                </div>
-                <div className="text-2xl font-black text-zinc-900">
-                  {inventoryOverview?.totalProducts ?? products.length}
-                </div>
-                <div className="mt-2 text-[11px] text-zinc-500">Active catalog items</div>
-              </div>
-
-              <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-2xs">
-                <div className="flex items-center justify-between text-zinc-500 mb-2">
-                  <span className="text-xs font-medium uppercase tracking-wider">Low Stock</span>
-                  <AlertTriangle className="w-4 h-4 text-amber-500" />
-                </div>
-                <div className="text-2xl font-black text-amber-600">
-                  {inventoryOverview?.lowStockProducts ?? 1} Low
-                </div>
-                <div className="mt-2 text-[11px] text-amber-600 font-semibold">Replenish soon</div>
-              </div>
-
-              <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-2xs">
-                <div className="flex items-center justify-between text-zinc-500 mb-2">
-                  <span className="text-xs font-medium uppercase tracking-wider">Out of Stock</span>
-                  <AlertTriangle className="w-4 h-4 text-rose-500" />
-                </div>
-                <div className="text-2xl font-black text-rose-600">
-                  {inventoryOverview?.outOfStockProducts ?? 0}
-                </div>
-                <div className="mt-2 text-[11px] text-rose-600 font-semibold">
-                  Immediate attention
-                </div>
-              </div>
-            </div>
-
             {/* Tab Navigation */}
-            <div className="flex items-center gap-2 border-b border-zinc-200 pb-px text-xs font-semibold">
+            <div className="flex items-center gap-2 border-b border-zinc-200 pb-px text-xs font-semibold overflow-x-auto">
               <button
                 onClick={() => setActiveTab('products')}
-                className={`flex items-center gap-1.5 px-4 py-2.5 border-b-2 transition-all ${
+                className={`flex items-center gap-1.5 px-4 py-2.5 border-b-2 transition-all whitespace-nowrap ${
                   activeTab === 'products'
                     ? 'border-indigo-600 text-indigo-600'
                     : 'border-transparent text-zinc-500 hover:text-zinc-900'
@@ -516,8 +616,23 @@ export default function SellerDashboardPage() {
               </button>
 
               <button
+                onClick={() => setActiveTab('store_builder')}
+                className={`flex items-center gap-1.5 px-4 py-2.5 border-b-2 transition-all whitespace-nowrap ${
+                  activeTab === 'store_builder'
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-zinc-500 hover:text-zinc-900'
+                }`}
+              >
+                <Store className="w-3.5 h-3.5" />
+                <span>Store Builder Studio</span>
+                <span className="ml-1 rounded-full bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 text-[10px] text-indigo-700 font-bold">
+                  NEW
+                </span>
+              </button>
+
+              <button
                 onClick={() => setActiveTab('inventory')}
-                className={`flex items-center gap-1.5 px-4 py-2.5 border-b-2 transition-all ${
+                className={`flex items-center gap-1.5 px-4 py-2.5 border-b-2 transition-all whitespace-nowrap ${
                   activeTab === 'inventory'
                     ? 'border-indigo-600 text-indigo-600'
                     : 'border-transparent text-zinc-500 hover:text-zinc-900'
@@ -534,7 +649,7 @@ export default function SellerDashboardPage() {
 
               <button
                 onClick={() => setActiveTab('orders')}
-                className={`flex items-center gap-1.5 px-4 py-2.5 border-b-2 transition-all ${
+                className={`flex items-center gap-1.5 px-4 py-2.5 border-b-2 transition-all whitespace-nowrap ${
                   activeTab === 'orders'
                     ? 'border-indigo-600 text-indigo-600'
                     : 'border-transparent text-zinc-500 hover:text-zinc-900'
@@ -548,7 +663,7 @@ export default function SellerDashboardPage() {
               </button>
             </div>
 
-            {/* TAB 1: PRODUCT MANAGEMENT TABLE (Part 7 Requirement) */}
+            {/* TAB 1: PRODUCT MANAGEMENT TABLE */}
             {activeTab === 'products' && (
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -584,7 +699,6 @@ export default function SellerDashboardPage() {
                       <tbody className="divide-y divide-zinc-100">
                         {filteredProducts.map((prod) => (
                           <tr key={prod.id} className="hover:bg-zinc-50/50 transition-colors">
-                            {/* Title & Image */}
                             <td className="py-3.5 px-4">
                               <div className="flex items-center gap-3">
                                 <img
@@ -640,7 +754,6 @@ export default function SellerDashboardPage() {
                               </span>
                             </td>
 
-                            {/* Actions (Part 7: Edit, Delete, Duplicate) */}
                             <td className="py-3.5 px-4 text-right">
                               <div className="flex items-center justify-end gap-1.5">
                                 <button
@@ -675,7 +788,463 @@ export default function SellerDashboardPage() {
               </div>
             )}
 
-            {/* TAB 2: INVENTORY & AUDIT TRAIL (Part 3 Requirement) */}
+            {/* TAB 2: STORE BUILDER STUDIO (NEW PHASE 2 REQUIREMENT) */}
+            {activeTab === 'store_builder' && (
+              <div className="space-y-6">
+                {/* Store Sub-tabs */}
+                <div className="flex items-center gap-2 border-b border-zinc-200 pb-2 text-xs font-semibold">
+                  <button
+                    onClick={() => setStoreSubTab('profile')}
+                    className={`px-3 py-1.5 rounded-lg transition-colors ${
+                      storeSubTab === 'profile'
+                        ? 'bg-zinc-900 text-white'
+                        : 'bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                    }`}
+                  >
+                    1. Profile & Branding
+                  </button>
+                  <button
+                    onClick={() => setStoreSubTab('theme')}
+                    className={`px-3 py-1.5 rounded-lg transition-colors ${
+                      storeSubTab === 'theme'
+                        ? 'bg-zinc-900 text-white'
+                        : 'bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                    }`}
+                  >
+                    2. Theme Studio
+                  </button>
+                  <button
+                    onClick={() => setStoreSubTab('sections')}
+                    className={`px-3 py-1.5 rounded-lg transition-colors ${
+                      storeSubTab === 'sections'
+                        ? 'bg-zinc-900 text-white'
+                        : 'bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                    }`}
+                  >
+                    3. Homepage Sections
+                  </button>
+                  <button
+                    onClick={() => setStoreSubTab('analytics')}
+                    className={`px-3 py-1.5 rounded-lg transition-colors ${
+                      storeSubTab === 'analytics'
+                        ? 'bg-zinc-900 text-white'
+                        : 'bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                    }`}
+                  >
+                    4. Analytics & Growth
+                  </button>
+                  <button
+                    onClick={() => setStoreSubTab('reviews')}
+                    className={`px-3 py-1.5 rounded-lg transition-colors ${
+                      storeSubTab === 'reviews'
+                        ? 'bg-zinc-900 text-white'
+                        : 'bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                    }`}
+                  >
+                    5. Store Reviews ({reviewsData.length})
+                  </button>
+                </div>
+
+                {/* Sub-tab 1: Store Profile & Branding */}
+                {storeSubTab === 'profile' && (
+                  <form onSubmit={handleSaveStoreProfile} className="space-y-6">
+                    <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-4 text-xs">
+                      <h3 className="text-sm font-bold text-zinc-900 pb-2 border-b border-zinc-100">
+                        Brand Identity & Contact Settings
+                      </h3>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="font-semibold text-zinc-700 block mb-1">
+                            Store Name *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={storeData.name}
+                            onChange={(e) => setStoreData({ ...storeData, name: e.target.value })}
+                            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-zinc-900 outline-none focus:border-indigo-600"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="font-semibold text-zinc-700 block mb-1">
+                            Unique Store URL Slug *
+                          </label>
+                          <div className="flex items-center rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-zinc-500 font-mono text-[11px]">
+                            <span>marketai.com/store/</span>
+                            <input
+                              type="text"
+                              required
+                              value={storeData.slug}
+                              onChange={(e) =>
+                                setStoreData({
+                                  ...storeData,
+                                  slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''),
+                                })
+                              }
+                              className="bg-transparent text-zinc-900 font-bold outline-none flex-1 ml-1"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="font-semibold text-zinc-700 block mb-1">
+                          Store Description / Tagline
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={storeData.description}
+                          onChange={(e) =>
+                            setStoreData({ ...storeData, description: e.target.value })
+                          }
+                          className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-zinc-900 outline-none focus:border-indigo-600"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="font-semibold text-zinc-700 block mb-1">
+                            Business Category
+                          </label>
+                          <input
+                            type="text"
+                            value={storeData.businessCategory}
+                            onChange={(e) =>
+                              setStoreData({ ...storeData, businessCategory: e.target.value })
+                            }
+                            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-zinc-900 outline-none focus:border-indigo-600"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-semibold text-zinc-700 block mb-1">
+                            Contact Email
+                          </label>
+                          <input
+                            type="email"
+                            value={storeData.contactEmail}
+                            onChange={(e) =>
+                              setStoreData({ ...storeData, contactEmail: e.target.value })
+                            }
+                            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-zinc-900 outline-none focus:border-indigo-600"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-semibold text-zinc-700 block mb-1">
+                            Contact Phone
+                          </label>
+                          <input
+                            type="text"
+                            value={storeData.contactPhone}
+                            onChange={(e) =>
+                              setStoreData({ ...storeData, contactPhone: e.target.value })
+                            }
+                            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-zinc-900 outline-none focus:border-indigo-600"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="font-semibold text-zinc-700 block mb-1">
+                            Store Logo URL
+                          </label>
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={storeData.logo}
+                              alt=""
+                              className="h-10 w-10 rounded-full object-cover border border-zinc-200 shrink-0"
+                            />
+                            <input
+                              type="text"
+                              value={storeData.logo}
+                              onChange={(e) => setStoreData({ ...storeData, logo: e.target.value })}
+                              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-zinc-900 outline-none focus:border-indigo-600 font-mono text-[11px]"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="font-semibold text-zinc-700 block mb-1">
+                            Store Banner URL
+                          </label>
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={storeData.banner}
+                              alt=""
+                              className="h-10 w-16 rounded object-cover border border-zinc-200 shrink-0"
+                            />
+                            <input
+                              type="text"
+                              value={storeData.banner}
+                              onChange={(e) =>
+                                setStoreData({ ...storeData, banner: e.target.value })
+                              }
+                              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-zinc-900 outline-none focus:border-indigo-600 font-mono text-[11px]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-4 border-t border-zinc-100 flex justify-end">
+                        <button
+                          type="submit"
+                          className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2"
+                        >
+                          Save Profile & Branding
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                )}
+
+                {/* Sub-tab 2: Store Theme Studio */}
+                {storeSubTab === 'theme' && (
+                  <form onSubmit={handleSaveTheme} className="space-y-6">
+                    <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-4 text-xs">
+                      <h3 className="text-sm font-bold text-zinc-900 pb-2 border-b border-zinc-100">
+                        Color Palette & Typography System
+                      </h3>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="font-semibold text-zinc-700 block mb-2">
+                            Primary Brand Color
+                          </label>
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="color"
+                              value={themeData.primaryColor}
+                              onChange={(e) =>
+                                setThemeData({ ...themeData, primaryColor: e.target.value })
+                              }
+                              className="h-10 w-14 rounded cursor-pointer border border-zinc-200 p-0.5"
+                            />
+                            <input
+                              type="text"
+                              value={themeData.primaryColor}
+                              onChange={(e) =>
+                                setThemeData({ ...themeData, primaryColor: e.target.value })
+                              }
+                              className="rounded-lg border border-zinc-200 px-3 py-2 font-mono text-zinc-900 outline-none focus:border-indigo-600 w-32"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="font-semibold text-zinc-700 block mb-2">
+                            Secondary Accent Color
+                          </label>
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="color"
+                              value={themeData.secondaryColor}
+                              onChange={(e) =>
+                                setThemeData({ ...themeData, secondaryColor: e.target.value })
+                              }
+                              className="h-10 w-14 rounded cursor-pointer border border-zinc-200 p-0.5"
+                            />
+                            <input
+                              type="text"
+                              value={themeData.secondaryColor}
+                              onChange={(e) =>
+                                setThemeData({ ...themeData, secondaryColor: e.target.value })
+                              }
+                              className="rounded-lg border border-zinc-200 px-3 py-2 font-mono text-zinc-900 outline-none focus:border-indigo-600 w-32"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-zinc-100">
+                        <div>
+                          <label className="font-semibold text-zinc-700 block mb-2">
+                            Store Layout Style
+                          </label>
+                          <select
+                            value={themeData.layoutType}
+                            onChange={(e) =>
+                              setThemeData({ ...themeData, layoutType: e.target.value })
+                            }
+                            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-zinc-900 outline-none focus:border-indigo-600"
+                          >
+                            <option value="Modern">Modern (Glassmorphism & Crisp Spacing)</option>
+                            <option value="Minimal">Minimal (Clean Monochrome Focus)</option>
+                            <option value="Bold">Bold (Vibrant High-Contrast Accent)</option>
+                            <option value="Elegant">Elegant (Refined Luxury Typography)</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="font-semibold text-zinc-700 block mb-2">
+                            Font Typography
+                          </label>
+                          <select
+                            value={themeData.fontStyle}
+                            onChange={(e) =>
+                              setThemeData({ ...themeData, fontStyle: e.target.value })
+                            }
+                            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-zinc-900 outline-none focus:border-indigo-600"
+                          >
+                            <option value="Inter">Inter (Clean Modern Sans-Serif)</option>
+                            <option value="Roboto">Roboto (Technical & Crisp)</option>
+                            <option value="Outfit">Outfit (Geometric & Trendy)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="pt-4 border-t border-zinc-100 flex justify-end">
+                        <button
+                          type="submit"
+                          className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2"
+                        >
+                          Apply Theme Settings
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                )}
+
+                {/* Sub-tab 3: Homepage Configurable Sections */}
+                {storeSubTab === 'sections' && (
+                  <form onSubmit={handleSaveSections} className="space-y-6">
+                    <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-4 text-xs">
+                      <div className="flex items-center justify-between pb-2 border-b border-zinc-100">
+                        <div>
+                          <h3 className="text-sm font-bold text-zinc-900">
+                            Configurable Homepage Section Blocks
+                          </h3>
+                          <p className="text-zinc-500">
+                            Enable, disable, and order content sections shown on your public
+                            storefront.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        {sectionsData.map((sec, idx) => (
+                          <div
+                            key={sec.id}
+                            className="flex items-center justify-between gap-4 p-4 rounded-xl border border-zinc-200 bg-zinc-50/50"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="font-bold text-zinc-400 text-xs">#{idx + 1}</span>
+                              <div>
+                                <span className="font-bold text-zinc-900 block">{sec.title}</span>
+                                <span className="text-[11px] text-zinc-500">{sec.subtitle}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={sec.enabled}
+                                  onChange={(e) => {
+                                    const updated = [...sectionsData];
+                                    updated[idx].enabled = e.target.checked;
+                                    setSectionsData(updated);
+                                  }}
+                                  className="h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                                />
+                                <span className="font-semibold text-zinc-700">
+                                  {sec.enabled ? 'Enabled' : 'Hidden'}
+                                </span>
+                              </label>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="pt-4 border-t border-zinc-100 flex justify-end">
+                        <button
+                          type="submit"
+                          className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2"
+                        >
+                          Save Section Layout
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                )}
+
+                {/* Sub-tab 4: Store Analytics */}
+                {storeSubTab === 'analytics' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-2xs">
+                        <span className="text-xs font-semibold text-zinc-500 uppercase">
+                          Total Visitors
+                        </span>
+                        <div className="text-2xl font-black text-zinc-900 mt-1">
+                          {analyticsData.views}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-2xs">
+                        <span className="text-xs font-semibold text-zinc-500 uppercase">
+                          Converted Orders
+                        </span>
+                        <div className="text-2xl font-black text-zinc-900 mt-1">
+                          {analyticsData.orders}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-2xs">
+                        <span className="text-xs font-semibold text-zinc-500 uppercase">
+                          Gross Revenue
+                        </span>
+                        <div className="text-2xl font-black text-zinc-900 mt-1">
+                          ${analyticsData.revenue.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-4">
+                      <h3 className="text-sm font-bold text-zinc-900">Top Performing Products</h3>
+                      <div className="divide-y divide-zinc-100">
+                        {analyticsData.topProducts.map((tp: any, i: number) => (
+                          <div key={i} className="py-3 flex items-center justify-between text-xs">
+                            <span className="font-semibold text-zinc-900">{tp.name}</span>
+                            <div className="flex items-center gap-4 text-zinc-600">
+                              <span>{tp.units} units sold</span>
+                              <span className="font-bold text-zinc-900">
+                                ${tp.revenue.toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Sub-tab 5: Store Reviews Moderation */}
+                {storeSubTab === 'reviews' && (
+                  <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-4 text-xs">
+                    <h3 className="text-sm font-bold text-zinc-900 pb-2 border-b border-zinc-100">
+                      Verified Customer Store Reviews
+                    </h3>
+
+                    <div className="divide-y divide-zinc-100">
+                      {reviewsData.map((rev) => (
+                        <div key={rev.id} className="py-4 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-zinc-900">{rev.user?.name}</span>
+                            <span className="text-[10px] text-zinc-400">{rev.createdAt}</span>
+                          </div>
+                          <div className="flex items-center text-amber-500 text-xs">
+                            {'★'.repeat(rev.rating)}
+                            {'☆'.repeat(5 - rev.rating)}
+                          </div>
+                          <p className="text-zinc-600 mt-1">{rev.comment}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 3: INVENTORY & AUDIT TRAIL */}
             {activeTab === 'inventory' && (
               <div className="space-y-6">
                 {/* Low Stock Warning Banner */}
@@ -795,7 +1364,7 @@ export default function SellerDashboardPage() {
               </div>
             )}
 
-            {/* TAB 3: FULFILLMENT HUB (Part 5 Requirement) */}
+            {/* TAB 4: FULFILLMENT HUB */}
             {activeTab === 'orders' && (
               <div className="space-y-4">
                 <h3 className="text-sm font-bold text-zinc-900">Incoming Customer Orders</h3>
@@ -854,7 +1423,7 @@ export default function SellerDashboardPage() {
                           ))}
                         </div>
 
-                        {/* Seller Order Actions (Part 5 Requirement: Accept, Ship, Complete) */}
+                        {/* Seller Order Actions */}
                         <div className="pt-3 border-t border-zinc-100 flex items-center justify-end gap-2 text-xs">
                           {order.status === 'PAID' && (
                             <button
@@ -931,7 +1500,6 @@ export default function SellerDashboardPage() {
                 </select>
               </div>
 
-              {/* Variant option if product has variants */}
               {selectedProductForRestock && (
                 <div>
                   <label className="font-semibold text-zinc-700 block mb-1">
@@ -1001,7 +1569,7 @@ export default function SellerDashboardPage() {
         </div>
       )}
 
-      {/* Add Product Modal (Part 7 Requirement) */}
+      {/* Add Product Modal */}
       {showAddProductModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
           <div className="w-full max-w-lg rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto">

@@ -26,4 +26,33 @@ export class UpdateStoreDto {
   @IsString()
   @IsOptional()
   bannerUrl?: string;
+
+  @ApiPropertyOptional({ example: 'gadget-hub-official' })
+  @IsString()
+  @IsOptional()
+  slug?: string;
+
+  @ApiPropertyOptional({ example: 'Electronics & Hardware' })
+  @IsString()
+  @IsOptional()
+  businessCategory?: string;
+
+  @ApiPropertyOptional({ example: 'support@gadgethub.com' })
+  @IsString()
+  @IsOptional()
+  contactEmail?: string;
+
+  @ApiPropertyOptional({ example: '+1 (555) 019-2831' })
+  @IsString()
+  @IsOptional()
+  contactPhone?: string;
+
+  @ApiPropertyOptional({
+    example: {
+      twitter: 'https://x.com/gadgethub',
+      instagram: 'https://instagr.am/gadgethub',
+    },
+  })
+  @IsOptional()
+  socialLinks?: Record<string, string>;
 }

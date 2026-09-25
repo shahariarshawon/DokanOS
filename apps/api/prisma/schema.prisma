@@ -127,6 +127,8 @@ model User {
   conversations    Conversation[]    @relation("CustomerConversations")
   analyticsEvents  AnalyticsEvent[]
   reviews          Review[]
+  followedStores   StoreFollower[]
+  storeReviews     StoreReview[]
 
   @@index([role, status])
   @@index([createdAt])
@@ -163,12 +165,17 @@ model Store {
   description     String?       @db.Text
   logoUrl         String?       @db.Text
   bannerUrl       String?       @db.Text
-  status          StoreStatus   @default(ACTIVE)
-  commissionRate  Decimal       @default(10.00) @db.Decimal(5, 2)
-  rating          Decimal       @default(0.00) @db.Decimal(3, 2)
-  reviewCount     Int           @default(0)
-  createdAt       DateTime      @default(now()) @db.Timestamptz
-  updatedAt       DateTime      @updatedAt @db.Timestamptz
+  status           StoreStatus   @default(ACTIVE)
+  businessCategory String?       @db.VarChar(100)
+  contactEmail     String?       @db.VarChar(255)
+  contactPhone     String?       @db.VarChar(50)
+  socialLinks      Json          @default("{}") @db.JsonB
+  followerCount    Int           @default(0)
+  commissionRate   Decimal       @default(10.00) @db.Decimal(5, 2)
+  rating           Decimal       @default(0.00) @db.Decimal(3, 2)
+  reviewCount      Int           @default(0)
+  createdAt        DateTime      @default(now()) @db.Timestamptz
+  updatedAt        DateTime      @updatedAt @db.Timestamptz
 
   sellerProfile   SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Restrict)
   products        Product[]
@@ -177,6 +184,10 @@ model Store {
   analyticsEvents AnalyticsEvent[]
   dailyAnalytics  DailyStoreAnalytics[]
   reviews         Review[]
+  theme           StoreTheme?
+  sections        StoreSection[]
+  followers       StoreFollower[]
+  storeReviews    StoreReview[]
 
   @@index([sellerProfileId])
   @@index([status, rating])
@@ -612,4 +623,76 @@ model DailyPlatformAnalytics {
   @@index([date])
   @@map("daily_platform_analytics")
 }
+
+// -------------------------------------------------------------
+// STORE BUILDER & CUSTOMIZATION MODELS
+// -------------------------------------------------------------
+
+model StoreTheme {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId        String   @unique @db.Uuid
+  primaryColor   String   @default("#4F46E5") @db.VarChar(30)
+  secondaryColor String   @default("#111827") @db.VarChar(30)
+  layoutType     String   @default("MODERN") @db.VarChar(50)
+  fontStyle      String   @default("INTER") @db.VarChar(50)
+  customCss      String?  @db.Text
+  createdAt      DateTime @default(now()) @db.Timestamptz
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  store          Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("store_themes")
+}
+
+model StoreSection {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId     String   @db.Uuid
+  sectionType String   @db.VarChar(50)
+  title       String?  @db.VarChar(150)
+  subtitle    String?  @db.VarChar(255)
+  content     Json     @default("{}") @db.JsonB
+  sortOrder   Int      @default(0)
+  isVisible   Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  updatedAt   DateTime @updatedAt @db.Timestamptz
+
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, sortOrder])
+  @@map("store_sections")
+}
+
+model StoreFollower {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId   String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, userId])
+  @@index([storeId])
+  @@index([userId])
+  @@map("store_followers")
+}
+
+model StoreReview {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId   String   @db.Uuid
+  userId    String   @db.Uuid
+  rating    Int      @default(5)
+  title     String?  @db.VarChar(150)
+  comment   String   @db.Text
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, rating])
+  @@index([userId])
+  @@map("store_reviews")
+}
+
 

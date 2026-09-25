@@ -484,3 +484,189 @@ export const DEMO_USERS = {
     role: 'ADMIN',
   },
 };
+
+export interface StoreTheme {
+  id?: string;
+  storeId?: string;
+  primaryColor: string;
+  secondaryColor: string;
+  layoutType: 'MODERN' | 'MINIMAL' | 'BOLD' | 'ELEGANT';
+  fontStyle: 'INTER' | 'ROBOTO' | 'OUTFIT' | 'PLAYFAIR';
+  customCss?: string;
+}
+
+export interface StoreSection {
+  id?: string;
+  sectionType:
+    'HERO_BANNER' | 'FEATURED_PRODUCTS' | 'NEW_ARRIVALS' | 'BEST_SELLERS' | 'ABOUT' | 'CONTACT';
+  title?: string;
+  subtitle?: string;
+  content?: Record<string, any>;
+  sortOrder: number;
+  isVisible: boolean;
+}
+
+export interface StoreReviewItem {
+  id: string;
+  userName: string;
+  userAvatar?: string;
+  rating: number;
+  title?: string;
+  comment: string;
+  createdAt: string;
+}
+
+export interface StoreDetails {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  logoUrl: string;
+  bannerUrl: string;
+  businessCategory: string;
+  contactEmail: string;
+  contactPhone: string;
+  socialLinks: {
+    twitter?: string;
+    instagram?: string;
+    website?: string;
+    facebook?: string;
+  };
+  rating: number;
+  reviewCount: number;
+  followerCount: number;
+  status: 'ACTIVE' | 'PENDING' | 'SUSPENDED';
+  theme: StoreTheme;
+  sections: StoreSection[];
+  storeReviews?: StoreReviewItem[];
+}
+
+export const MOCK_STORES: Record<string, StoreDetails> = {
+  'apple-authorized': {
+    id: 'store-apple',
+    name: 'Apple Authorized Store',
+    slug: 'apple-authorized',
+    description:
+      'Official authorized vendor for genuine Apple products, iPhones, MacBooks, and accessories backed by AppleCare.',
+    logoUrl:
+      'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=300&auto=format&fit=crop&q=80',
+    bannerUrl:
+      'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=1600&auto=format&fit=crop&q=80',
+    businessCategory: 'Consumer Electronics & Hardware',
+    contactEmail: 'contact@apple-authorized.dokanos.dev',
+    contactPhone: '+1 (800) 692-7753',
+    socialLinks: {
+      twitter: 'https://x.com/apple',
+      website: 'https://apple.com',
+      instagram: 'https://instagram.com/apple',
+    },
+    rating: 4.95,
+    reviewCount: 166,
+    followerCount: 2480,
+    status: 'ACTIVE',
+    theme: {
+      primaryColor: '#4F46E5',
+      secondaryColor: '#0F172A',
+      layoutType: 'MODERN',
+      fontStyle: 'INTER',
+    },
+    sections: [
+      {
+        sectionType: 'HERO_BANNER',
+        title: 'Innovations Engineered for Professionals',
+        subtitle:
+          'Experience the titanium precision of iPhone 15 Pro and the extreme performance of M3 Max.',
+        content: { ctaText: 'Shop Flagship Devices', ctaUrl: '#products' },
+        sortOrder: 1,
+        isVisible: true,
+      },
+      {
+        sectionType: 'FEATURED_PRODUCTS',
+        title: 'Featured Devices',
+        subtitle: 'Our top-rated products with verified factory warranties.',
+        content: { limit: 4 },
+        sortOrder: 2,
+        isVisible: true,
+      },
+      {
+        sectionType: 'ABOUT',
+        title: 'Authorized Excellence',
+        subtitle:
+          'Every device sold through Apple Authorized Store undergoes 100-point diagnostic checks.',
+        content: {},
+        sortOrder: 3,
+        isVisible: true,
+      },
+      {
+        sectionType: 'CONTACT',
+        title: 'Direct Support',
+        subtitle: 'Need help choosing the right specs? Our certified specialists are online 24/7.',
+        content: {},
+        sortOrder: 4,
+        isVisible: true,
+      },
+    ],
+    storeReviews: [
+      {
+        id: 'srev-1',
+        userName: 'Jonathan Brand',
+        rating: 5,
+        title: 'Fast dispatch and immaculate packaging',
+        comment: 'Received my Space Black MacBook within 24 hours. Sealed in original factory box.',
+        createdAt: '2026-09-22',
+      },
+      {
+        id: 'srev-2',
+        userName: 'Sophia Chen',
+        rating: 5,
+        title: 'Genuine serial number verified',
+        comment: 'Verified the AppleCare warranty immediately upon unboxing. Exceptional service.',
+        createdAt: '2026-09-19',
+      },
+    ],
+  },
+  'fleet-street-athletics': {
+    id: 'store-nike',
+    name: 'Fleet Street Athletics',
+    slug: 'fleet-street-athletics',
+    description: 'Performance footwear, marathon running shoes, and technical athletic apparel.',
+    logoUrl:
+      'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&auto=format&fit=crop&q=80',
+    bannerUrl:
+      'https://images.unsplash.com/photo-1511556532299-8f662fc26c06?w=1600&auto=format&fit=crop&q=80',
+    businessCategory: 'Athletic Footwear & Apparel',
+    contactEmail: 'support@fleetathletics.dokanos.dev',
+    contactPhone: '+1 (555) 832-1920',
+    socialLinks: {
+      instagram: 'https://instagram.com/fleetathletics',
+    },
+    rating: 4.88,
+    reviewCount: 94,
+    followerCount: 1120,
+    status: 'ACTIVE',
+    theme: {
+      primaryColor: '#10B981',
+      secondaryColor: '#064E3B',
+      layoutType: 'BOLD',
+      fontStyle: 'OUTFIT',
+    },
+    sections: [
+      {
+        sectionType: 'HERO_BANNER',
+        title: 'Engineered For Distance',
+        subtitle: 'Push your daily limits with Zoom Air responsiveness.',
+        content: { ctaText: 'Browse Athletic Shoes' },
+        sortOrder: 1,
+        isVisible: true,
+      },
+      {
+        sectionType: 'FEATURED_PRODUCTS',
+        title: 'Top Trainers',
+        subtitle: 'Bestselling road and trail running shoes.',
+        content: { limit: 4 },
+        sortOrder: 2,
+        isVisible: true,
+      },
+    ],
+  },
+};

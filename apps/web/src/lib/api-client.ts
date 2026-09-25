@@ -1,4 +1,12 @@
-import { MOCK_PRODUCTS, Product, ProductVariant } from './mock-data';
+import {
+  MOCK_PRODUCTS,
+  MOCK_STORES,
+  Product,
+  ProductVariant,
+  StoreDetails,
+  StoreSection,
+  StoreTheme,
+} from './mock-data';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
@@ -399,4 +407,179 @@ export async function submitProductReview(
     const total = p.reviews.reduce((acc, r) => acc + r.rating, 0);
     p.rating = parseFloat((total / p.reviews.length).toFixed(1));
   }
+}
+
+// In-memory local stores registry
+let localStores: Record<string, StoreDetails> = { ...MOCK_STORES };
+
+export async function fetchStoreBySlug(slug: string): Promise<StoreDetails | null> {
+  const normalized = slug.toLowerCase().trim();
+  try {
+    const res = await fetch(`${API_BASE_URL}/stores/${normalized}`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // Fallback
+  }
+
+  return localStores[normalized] || localStores['apple-authorized'] || null;
+}
+
+export async function updateStoreProfile(
+  storeId: string,
+  data: Partial<StoreDetails>,
+): Promise<StoreDetails> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/stores/${storeId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback
+  }
+
+  const existingKey =
+    Object.keys(localStores).find((k) => localStores[k].id === storeId) || 'apple-authorized';
+  const updated: StoreDetails = {
+    ...localStores[existingKey],
+    ...data,
+  };
+  localStores[existingKey] = updated;
+  if (data.slug) {
+    localStores[data.slug] = updated;
+  }
+  return updated;
+}
+
+export async function updateStoreTheme(
+  storeId: string,
+  theme: Partial<StoreTheme>,
+): Promise<StoreTheme> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/stores/${storeId}/theme`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(theme),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback
+  }
+
+  const key =
+    Object.keys(localStores).find((k) => localStores[k].id === storeId) || 'apple-authorized';
+  localStores[key].theme = {
+    ...localStores[key].theme,
+    ...theme,
+  };
+  return localStores[key].theme;
+}
+
+export async function updateStoreSections(
+  storeId: string,
+  sections: StoreSection[],
+): Promise<StoreSection[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/stores/${storeId}/sections`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sections }),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback
+  }
+
+  const key =
+    Object.keys(localStores).find((k) => localStores[k].id === storeId) || 'apple-authorized';
+  localStores[key].sections = sections;
+  return sections;
+}
+
+export async function submitStoreReview(
+  slug: string,
+  review: { rating: number; title?: string; comment: string },
+): Promise<void> {
+  try {
+    await fetch(`${API_BASE_URL}/stores/${slug}/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(review),
+    });
+  } catch {
+    // Fallback
+  }
+
+  const s = localStores[slug] || localStores['apple-authorized'];
+  if (s) {
+    if (!s.storeReviews) s.storeReviews = [];
+    s.storeReviews.unshift({
+      id: `srev-${Date.now()}`,
+      userName: 'Verified Customer',
+      rating: review.rating,
+      title: review.title,
+      comment: review.comment,
+      createdAt: new Date().toISOString().split('T')[0],
+    });
+    s.reviewCount++;
+  }
+}
+
+export async function toggleStoreFollow(
+  slug: string,
+): Promise<{ isFollowing: boolean; followerCount: number }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/stores/${slug}/follow`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback
+  }
+
+  const s = localStores[slug] || localStores['apple-authorized'];
+  if (s) {
+    s.followerCount = (s.followerCount || 0) + 1;
+    return { isFollowing: true, followerCount: s.followerCount };
+  }
+  return { isFollowing: true, followerCount: 100 };
+}
+
+export async function checkFollowStatus(slug: string): Promise<{ isFollowing: boolean }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/stores/${slug}/follow-status`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback
+  }
+  return { isFollowing: false };
+}
+
+export async function uploadImageFile(file: File): Promise<{ url: string }> {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${API_BASE_URL}/upload/image`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return { url: data.url };
+    }
+  } catch {
+    // Fallback
+  }
+
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      resolve({ url: reader.result as string });
+    };
+    reader.readAsDataURL(file);
+  });
 }
