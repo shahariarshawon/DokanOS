@@ -39,6 +39,7 @@ import {
 import { Navbar } from '@/components/navbar';
 import { Footer } from '@/components/footer';
 import { AnalyticsDashboard } from '@/components/analytics/analytics-dashboard';
+import { AISalesCopilot } from '@/components/ai/ai-sales-copilot';
 import {
   fetchProducts,
   fetchInventoryOverview,
@@ -64,7 +65,14 @@ export default function SellerDashboardPage() {
   const [dashboardView, setDashboardView] = useState<'seller' | 'admin'>('seller');
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
   const [activeTab, setActiveTab] = useState<
-    'products' | 'store_builder' | 'inventory' | 'orders' | 'billing' | 'messages' | 'analytics'
+    | 'products'
+    | 'store_builder'
+    | 'inventory'
+    | 'orders'
+    | 'billing'
+    | 'messages'
+    | 'analytics'
+    | 'ai_copilot'
   >('products');
   const [storeSubTab, setStoreSubTab] = useState<
     'profile' | 'theme' | 'sections' | 'analytics' | 'reviews'
@@ -1050,6 +1058,22 @@ export default function SellerDashboardPage() {
                 <span>Analytics & BI</span>
                 <span className="ml-1 rounded-full bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 text-[10px] text-indigo-700 font-bold">
                   AI INSIGHTS
+                </span>
+              </button>
+
+              <button
+                data-testid="tab-ai-copilot"
+                onClick={() => setActiveTab('ai_copilot')}
+                className={`flex items-center gap-1.5 px-4 py-2.5 border-b-2 transition-all whitespace-nowrap ${
+                  activeTab === 'ai_copilot'
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-zinc-500 hover:text-zinc-900'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                <span>AI Copilot & Automation</span>
+                <span className="ml-1 rounded-full bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 text-[10px] text-indigo-700 font-bold">
+                  PHASE 9
                 </span>
               </button>
 
@@ -2164,6 +2188,13 @@ export default function SellerDashboardPage() {
                 defaultStoreId={storeData.id || 'store-apple-zone'}
                 isAdmin={false}
               />
+            )}
+
+            {/* TAB 8: ADVANCED AI AUTOMATION & COPILOT (PHASE 9) */}
+            {activeTab === 'ai_copilot' && (
+              <div className="space-y-6">
+                <AISalesCopilot />
+              </div>
             )}
           </div>
         )}

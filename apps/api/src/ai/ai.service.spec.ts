@@ -39,6 +39,24 @@ describe('AiService (Backend Testing)', () => {
       sellerProfile: {
         findUnique: vi.fn().mockResolvedValue(null),
       },
+      order: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        findMany: vi.fn().mockResolvedValue([]),
+        count: vi.fn().mockResolvedValue(0),
+      },
+      orderItem: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      payment: {
+        count: vi.fn().mockResolvedValue(0),
+      },
+      analyticsEvent: {
+        count: vi.fn().mockResolvedValue(0),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      analyticsCustomerEvent: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
     };
 
     configService = {
@@ -263,6 +281,224 @@ describe('AiService (Backend Testing)', () => {
       expect(res.recommendations).toHaveLength(1);
       expect(res.recommendations[0].similarityScore).toBe(0.88);
       expect(res.recommendations[0].matchReasons).toContain('Same Category');
+    });
+  });
+
+  describe('Personalized Recommendations Engine', () => {
+    it('should generate personalized recommendations based on user browsing history', async () => {
+      prisma.analyticsEvent = {
+        findMany: vi.fn().mockResolvedValue([{ productId: 'prod-viewed-1' }]),
+      };
+      prisma.order = {
+        findMany: vi.fn().mockResolvedValue([]),
+        count: vi.fn().mockResolvedValue(1),
+        findUnique: vi.fn().mockResolvedValue(null),
+      };
+      prisma.product.findMany = vi
+        .fn()
+        .mockResolvedValueOnce([{ categoryId: 'cat-electronics' }])
+        .mockResolvedValueOnce([
+          {
+            id: 'prod-rec-1',
+            title: 'Wireless Earbuds',
+            slug: 'wireless-earbuds',
+            price: new Prisma.Decimal(99.0),
+            rating: new Prisma.Decimal(4.8),
+            reviewCount: 30,
+            store: { name: 'AudioTech' },
+            category: { name: 'Audio' },
+            images: [{ url: 'https://example.com/earbuds.jpg' }],
+          },
+        ]);
+
+      const res = await aiService.getPersonalizedRecommendations('user-1', {
+        limit: 5,
+        includeHistory: true,
+      });
+
+      expect(res.recommendations).toHaveLength(1);
+      expect(res.strategy).toBe('behavioral_collaborative');
+      expect(res.recommendations[0].title).toBe('Wireless Earbuds');
+    });
+  });
+
+  describe('Natural Language AI Search Assistant', () => {
+    it('should extract budget, category, and purpose from natural query', async () => {
+      prisma.category = {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            { id: 'cat-shoes', name: 'Shoes', slug: 'shoes' },
+          ]),
+      };
+      prisma.product.findMany = vi.fn().mockResolvedValue([
+        {
+          id: 'prod-shoe-1',
+          title: 'Speed Running Shoes',
+          slug: 'speed-running-shoes',
+          price: new Prisma.Decimal(79.99),
+          rating: new Prisma.Decimal(4.7),
+          store: { name: 'AthleticZone' },
+          category: { name: 'Shoes' },
+          images: [{ url: 'https://example.com/shoes.jpg' }],
+        },
+      ]);
+
+      const res = await aiService.naturalSearch({
+        query: 'I need affordable shoes for running under $100',
+      });
+
+      expect(res.extractedIntent.category).toBe('Shoes');
+      expect(res.extractedIntent.maxBudget).toBe(100);
+      expect(res.extractedIntent.purpose).toBe('running');
+      expect(res.products).toHaveLength(1);
+      expect(res.products[0].title).toBe('Speed Running Shoes');
+      expect(res.aiSummary).toContain('running');
+    });
+  });
+
+  describe('AI Sales Assistant for Sellers', () => {
+    it('should diagnose sales drops and provide marketing, pricing, and product improvements', async () => {
+      prisma.sellerProfile.findUnique = vi.fn().mockResolvedValue({
+        stores: [{ id: 'store-1', name: 'Apex Audio' }],
+      });
+      prisma.orderItem = {
+        findMany: vi
+          .fn()
+          .mockResolvedValueOnce([
+            {
+              totalPrice: new Prisma.Decimal(500),
+              quantity: 5,
+              productId: 'p-1',
+            },
+          ])
+          .mockResolvedValueOnce([
+            {
+              totalPrice: new Prisma.Decimal(1000),
+              quantity: 10,
+              productId: 'p-1',
+            },
+          ]),
+      };
+      prisma.analyticsEvent.count = vi.fn().mockResolvedValue(200);
+      prisma.product.findMany = vi
+        .fn()
+        .mockResolvedValue([
+          {
+            id: 'p-2',
+            title: 'Wireless Headphones',
+            stockQuantity: 40,
+            price: new Prisma.Decimal(150),
+          },
+        ]);
+
+      const res = await aiService.sellerSalesAssistant(
+        { question: 'Why are my sales dropping this month?' },
+        'seller-1',
+        'SELLER',
+      );
+
+      expect(res.diagnostics).toContain('Analysis indicates');
+      expect(res.marketingSuggestions.length).toBeGreaterThan(0);
+      expect(res.pricingSuggestions.length).toBeGreaterThan(0);
+      expect(res.productImprovements.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Automated Product Optimization', () => {
+    it('should generate commercial titles, markdown descriptions, and SEO tags', async () => {
+      prisma.product.findUnique = vi.fn().mockResolvedValue({
+        id: 'p-1',
+        title: 'Mechanical Keyboard',
+        description: 'A basic keyboard',
+        sku: 'KB-01',
+        category: { name: 'Keyboards' },
+        store: { name: 'KeyCraft' },
+      });
+
+      const res = await aiService.optimizeProduct('p-1');
+
+      expect(res.optimizedTitle).toContain('High Performance Edition');
+      expect(res.optimizedDescription).toContain('## Overview');
+      expect(res.seoKeywords.length).toBeGreaterThan(0);
+      expect(res.projectedVisibilityScore).toBeGreaterThan(90);
+    });
+
+    it('should apply optimization directly to product', async () => {
+      prisma.product.findUnique = vi.fn().mockResolvedValue({
+        id: 'p-1',
+        attributes: {},
+        store: { sellerProfile: { userId: 'seller-1' } },
+      });
+      prisma.product.update = vi.fn().mockResolvedValue({
+        id: 'p-1',
+        title: 'Optimized Keyboard',
+      });
+
+      const res = await aiService.applyProductOptimization(
+        'p-1',
+        { title: 'Optimized Keyboard' },
+        'seller-1',
+      );
+
+      expect(res.title).toBe('Optimized Keyboard');
+      expect(prisma.product.update).toHaveBeenCalled();
+    });
+  });
+
+  describe('AI Fraud Detection Preparation', () => {
+    it('should compute RiskScore and classify order risk accurately', async () => {
+      prisma.order.findUnique = vi.fn().mockResolvedValue({
+        id: 'ord-fraud-1',
+        orderNumber: 'DOK-9921',
+        totalAmount: new Prisma.Decimal(2500.0),
+        userId: 'user-suspect',
+        user: {
+          id: 'user-suspect',
+          firstName: 'Anon',
+          lastName: 'Buyer',
+          email: 'anon@darkmail.com',
+          createdAt: new Date(), // registered just now
+        },
+        items: [{ productId: 'p-1', quantity: 6 }],
+        payments: [{ status: 'FAILED' }],
+      });
+      prisma.payment = {
+        count: vi.fn().mockResolvedValue(3),
+      };
+      prisma.order.count = vi.fn().mockResolvedValue(1);
+
+      const res = await aiService.assessOrderFraud('ord-fraud-1');
+
+      expect(res.riskScore).toBeGreaterThan(70);
+      expect(res.recommendation).toBe('BLOCK');
+      expect(res.triggers.length).toBeGreaterThanOrEqual(3);
+    });
+  });
+
+  describe('AI Automation Workflow', () => {
+    it('should run background automation pipeline for product scans and seller reports', async () => {
+      prisma.product.findMany = vi
+        .fn()
+        .mockResolvedValue([
+          {
+            id: 'p-1',
+            title: 'Low Stock Item',
+            stockQuantity: 2,
+            storeId: 'store-1',
+          },
+        ]);
+      prisma.store = {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: 'store-1', name: 'Apex Store' }]),
+      };
+
+      const res = await aiService.runAutomationWorkflow({});
+
+      expect(res.summary.productsAnalyzed).toBe(1);
+      expect(res.summary.alertsDispatched).toBe(1);
+      expect(res.details.length).toBeGreaterThan(0);
     });
   });
 });

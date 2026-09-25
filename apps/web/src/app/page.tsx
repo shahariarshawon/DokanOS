@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { Navbar } from '@/components/navbar';
 import { Footer } from '@/components/footer';
+import { NaturalSearchBar } from '@/components/ai/natural-search-bar';
+import { PersonalizedRecommendationsSection } from '@/components/ai/personalized-recommendations';
 import { fetchProducts } from '@/lib/api-client';
 import { Product, CATEGORIES } from '@/lib/mock-data';
 import { useCart } from '@/lib/cart-context';
@@ -96,29 +98,10 @@ export default function HomePage() {
               multi-store checkout, and escrow-backed fulfillment.
             </p>
 
-            {/* Global Search Bar */}
-            <form
-              onSubmit={handleSearchSubmit}
-              className="mt-8 flex items-center max-w-xl mx-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-sm focus-within:border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-100 transition-all"
-            >
-              <div className="flex items-center pl-3 pr-2 text-zinc-400">
-                <Search className="w-4 h-4" />
-              </div>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search products, brands, tech, footwear..."
-                className="w-full bg-transparent text-xs sm:text-sm text-zinc-900 placeholder-zinc-400 outline-none"
-              />
-              <button
-                type="submit"
-                className="flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-xs font-semibold text-white transition-colors shadow-xs"
-              >
-                <span>Search</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </form>
+            {/* AI Natural Language Search Assistant (Phase 9) */}
+            <div className="mt-8">
+              <NaturalSearchBar />
+            </div>
 
             {/* Category Quick Tags */}
             <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-xs text-zinc-500">
@@ -307,6 +290,13 @@ export default function HomePage() {
               })}
             </div>
           )}
+        </div>
+      </section>
+
+      {/* Personalized AI Product Recommendations (Phase 9) */}
+      <section className="bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <PersonalizedRecommendationsSection limit={6} />
         </div>
       </section>
 
