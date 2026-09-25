@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import {
   AnalyticsEventType,
+  InsightSeverity,
+  InsightType,
   OrderStatus,
   PaymentStatus,
   Prisma,
@@ -19,10 +21,21 @@ import {
   SellerAnalyticsQueryDto,
 } from './dto/seller-analytics-query.dto.js';
 import { AdminAnalyticsQueryDto } from './dto/admin-analytics-query.dto.js';
+import { ProductAnalyticsQueryDto } from './dto/product-analytics-query.dto.js';
+import { CustomerAnalyticsQueryDto } from './dto/customer-analytics-query.dto.js';
+import {
+  ExportAnalyticsQueryDto,
+  ExportReportType,
+} from './dto/export-analytics-query.dto.js';
 import {
   AdminDashboardResult,
   AdminTimelineDataPoint,
   CustomerActivityItem,
+  CustomerAnalyticsResult,
+  CustomerSegmentItem,
+  InsightItem,
+  ProductAnalyticsResult,
+  ProductPerformanceItem,
   SellerDashboardResult,
   TimelineDataPoint,
   TopProductItem,
@@ -651,6 +664,806 @@ export class AnalyticsService {
 
     await this.setCache(cacheKey, result, 300);
     return result;
+  }
+
+  // -------------------------------------------------------------
+  // STORE RESOLUTION HELPER
+  // -------------------------------------------------------------
+
+  private async resolveStoreId(
+    userId: string,
+    role: UserRole,
+    storeId?: string,
+  ): Promise<string> {
+    if (storeId) {
+      if (role === UserRole.ADMIN) {
+        return storeId;
+      }
+      const store = await this.prisma.store.findUnique({
+        where: { id: storeId },
+        include: { sellerProfile: true },
+      });
+      if (!store || store.sellerProfile.userId !== userId) {
+        throw new ForbiddenException(
+          'You do not have access to this store analytics',
+        );
+      }
+      return store.id;
+    }
+
+    const sellerProfile = await this.prisma.sellerProfile.findUnique({
+      where: { userId },
+      include: { stores: { take: 1, orderBy: { createdAt: 'asc' } } },
+    });
+
+    if (!sellerProfile || sellerProfile.stores.length === 0) {
+      throw new NotFoundException(
+        'No active store found for this seller account',
+      );
+    }
+    return sellerProfile.stores[0].id;
+  }
+
+  // -------------------------------------------------------------
+  // PART 3: PRODUCT ANALYTICS
+  // -------------------------------------------------------------
+
+  async getProductAnalytics(
+    userId: string,
+    role: UserRole,
+    query: ProductAnalyticsQueryDto,
+  ): Promise<ProductAnalyticsResult> {
+    const targetStoreId = await this.resolveStoreId(
+      userId,
+      role,
+      query.storeId,
+    );
+    const bounds = this.resolveDateRange(query.timeRange);
+    const cacheKey = `analytics:seller:${targetStoreId}:products:${bounds.timeRangeKey}`;
+
+    const cached = await this.getCache<ProductAnalyticsResult>(cacheKey);
+    if (cached) {
+      return { ...cached, cached: true };
+    }
+
+    const [products, orderItems, viewEvents] = await Promise.all([
+      this.prisma.product.findMany({
+        where: { storeId: targetStoreId, status: { not: 'ARCHIVED' } },
+        include: { category: { select: { name: true } } },
+      }),
+      this.prisma.orderItem.findMany({
+        where: {
+          storeId: targetStoreId,
+          createdAt: { gte: bounds.currentStart, lte: bounds.currentEnd },
+          order: {
+            status: { notIn: [OrderStatus.CANCELLED, OrderStatus.REFUNDED] },
+          },
+        },
+        select: {
+          productId: true,
+          orderId: true,
+          quantity: true,
+          totalPrice: true,
+        },
+      }),
+      this.prisma.analyticsEvent.groupBy({
+        by: ['productId'],
+        where: {
+          storeId: targetStoreId,
+          eventType: AnalyticsEventType.PRODUCT_VIEW,
+          productId: { not: null },
+          createdAt: { gte: bounds.currentStart, lte: bounds.currentEnd },
+        },
+        _count: { id: true },
+      }),
+    ]);
+
+    // Aggregate metrics per product
+    const orderItemsMap = new Map<
+      string,
+      { unitsSold: number; revenue: number; orderIds: Set<string> }
+    >();
+
+    for (const item of orderItems) {
+      if (!item.productId) continue;
+      const entry = orderItemsMap.get(item.productId) || {
+        unitsSold: 0,
+        revenue: 0,
+        orderIds: new Set<string>(),
+      };
+      entry.unitsSold += item.quantity;
+      entry.revenue += Number(item.totalPrice);
+      entry.orderIds.add(item.orderId);
+      orderItemsMap.set(item.productId, entry);
+    }
+
+    const viewsMap = new Map<string, number>();
+    let totalViews = 0;
+    for (const v of viewEvents) {
+      if (v.productId) {
+        viewsMap.set(v.productId, v._count.id);
+        totalViews += v._count.id;
+      }
+    }
+
+    const categoryMap = new Map<
+      string,
+      { revenue: number; unitsSold: number }
+    >();
+
+    const performanceItems: ProductPerformanceItem[] = products.map((prod) => {
+      const stats = orderItemsMap.get(prod.id) || {
+        unitsSold: 0,
+        revenue: 0,
+        orderIds: new Set<string>(),
+      };
+      const views = viewsMap.get(prod.id) || 0;
+      const orders = stats.orderIds.size;
+      const conversionRate =
+        views > 0
+          ? Math.round((orders / views) * 1000) / 10
+          : orders > 0
+            ? 100
+            : 0;
+
+      let inventoryStatus: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK' =
+        'IN_STOCK';
+      if (prod.stockQuantity <= 0) {
+        inventoryStatus = 'OUT_OF_STOCK';
+      } else if (prod.stockQuantity <= prod.lowStockThreshold) {
+        inventoryStatus = 'LOW_STOCK';
+      }
+
+      const catName = prod.category?.name || 'Uncategorized';
+      const catEntry = categoryMap.get(catName) || { revenue: 0, unitsSold: 0 };
+      catEntry.revenue += stats.revenue;
+      catEntry.unitsSold += stats.unitsSold;
+      categoryMap.set(catName, catEntry);
+
+      return {
+        id: prod.id,
+        title: prod.title,
+        sku: prod.sku,
+        category: catName,
+        price: Number(prod.price),
+        stock: prod.stockQuantity,
+        views,
+        orders,
+        unitsSold: stats.unitsSold,
+        revenue: Math.round(stats.revenue * 100) / 100,
+        conversionRate,
+        inventoryStatus,
+      };
+    });
+
+    const topSelling = [...performanceItems].sort(
+      (a, b) => b.revenue - a.revenue,
+    );
+    const lowPerforming = [...performanceItems]
+      .filter((p) => p.unitsSold <= 1)
+      .sort((a, b) => b.stock - a.stock);
+    const outOfStock = performanceItems.filter(
+      (p) => p.inventoryStatus === 'OUT_OF_STOCK',
+    );
+
+    const categoryPerformance = Array.from(categoryMap.entries()).map(
+      ([category, val]) => ({
+        category,
+        revenue: Math.round(val.revenue * 100) / 100,
+        unitsSold: val.unitsSold,
+      }),
+    );
+
+    const avgConversionRate =
+      performanceItems.length > 0
+        ? Math.round(
+            (performanceItems.reduce((acc, p) => acc + p.conversionRate, 0) /
+              performanceItems.length) *
+              10,
+          ) / 10
+        : 0;
+
+    const result: ProductAnalyticsResult = {
+      storeId: targetStoreId,
+      timeRange: bounds.timeRangeKey,
+      topSelling: topSelling.slice(0, 10),
+      lowPerforming: lowPerforming.slice(0, 10),
+      outOfStock,
+      categoryPerformance,
+      totalViews,
+      averageConversionRate: avgConversionRate,
+      cached: false,
+    };
+
+    await this.setCache(cacheKey, result, 300);
+    return result;
+  }
+
+  // -------------------------------------------------------------
+  // PART 4: CUSTOMER ANALYTICS & SEGMENTATION
+  // -------------------------------------------------------------
+
+  async getCustomerAnalytics(
+    userId: string,
+    role: UserRole,
+    query: CustomerAnalyticsQueryDto,
+  ): Promise<CustomerAnalyticsResult> {
+    const targetStoreId = await this.resolveStoreId(
+      userId,
+      role,
+      query.storeId,
+    );
+    const bounds = this.resolveDateRange(query.timeRange);
+    const cacheKey = `analytics:seller:${targetStoreId}:customers:${bounds.timeRangeKey}`;
+
+    const cached = await this.getCache<CustomerAnalyticsResult>(cacheKey);
+    if (cached) {
+      return { ...cached, cached: true };
+    }
+
+    const orders = await this.prisma.order.findMany({
+      where: {
+        items: { some: { storeId: targetStoreId } },
+        status: { notIn: [OrderStatus.CANCELLED, OrderStatus.REFUNDED] },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            createdAt: true,
+          },
+        },
+        items: {
+          where: { storeId: targetStoreId },
+          select: { totalPrice: true },
+        },
+      },
+      orderBy: { placedAt: 'asc' },
+    });
+
+    const customerMap = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        email: string | null;
+        ordersCount: number;
+        totalSpent: number;
+        firstOrderDate: Date;
+        lastOrderDate: Date;
+      }
+    >();
+
+    for (const order of orders) {
+      const u = order.user;
+      if (!u) continue;
+      const orderSpent = order.items.reduce(
+        (sum, item) => sum + Number(item.totalPrice),
+        0,
+      );
+
+      const entry = customerMap.get(u.id) || {
+        id: u.id,
+        name:
+          `${u.firstName || ''} ${u.lastName || ''}`.trim() ||
+          'Anonymous Shopper',
+        email: u.email,
+        ordersCount: 0,
+        totalSpent: 0,
+        firstOrderDate: order.placedAt,
+        lastOrderDate: order.placedAt,
+      };
+
+      entry.ordersCount += 1;
+      entry.totalSpent += orderSpent;
+      if (order.placedAt > entry.lastOrderDate) {
+        entry.lastOrderDate = order.placedAt;
+      }
+      customerMap.set(u.id, entry);
+    }
+
+    let newCount = 0;
+    let regularCount = 0;
+    let highValueCount = 0;
+    let totalAllSpent = 0;
+
+    const customerItems: CustomerSegmentItem[] = [];
+
+    for (const cust of customerMap.values()) {
+      totalAllSpent += cust.totalSpent;
+      const avgOrderVal =
+        cust.ordersCount > 0
+          ? Math.round((cust.totalSpent / cust.ordersCount) * 100) / 100
+          : 0;
+
+      let segment: 'NEW' | 'REGULAR' | 'HIGH_VALUE';
+      if (cust.ordersCount >= 2 && cust.totalSpent >= 300) {
+        segment = 'HIGH_VALUE';
+        highValueCount++;
+      } else if (cust.ordersCount >= 2) {
+        segment = 'REGULAR';
+        regularCount++;
+      } else {
+        segment = 'NEW';
+        newCount++;
+      }
+
+      customerItems.push({
+        id: cust.id,
+        name: cust.name,
+        email: cust.email,
+        ordersCount: cust.ordersCount,
+        totalSpent: Math.round(cust.totalSpent * 100) / 100,
+        averageOrderValue: avgOrderVal,
+        segment,
+        firstOrderDate: cust.firstOrderDate.toISOString(),
+        lastOrderDate: cust.lastOrderDate.toISOString(),
+      });
+    }
+
+    const totalCustomers = customerItems.length;
+    const returningCustomersCount = regularCount + highValueCount;
+    const returningRatePct =
+      totalCustomers > 0
+        ? Math.round((returningCustomersCount / totalCustomers) * 1000) / 10
+        : 0;
+    const averageLifetimeValue =
+      totalCustomers > 0
+        ? Math.round((totalAllSpent / totalCustomers) * 100) / 100
+        : 0;
+    const averagePurchaseFrequency =
+      totalCustomers > 0
+        ? Math.round((orders.length / totalCustomers) * 10) / 10
+        : 0;
+
+    customerItems.sort((a, b) => b.totalSpent - a.totalSpent);
+
+    const result: CustomerAnalyticsResult = {
+      storeId: targetStoreId,
+      timeRange: bounds.timeRangeKey,
+      totalCustomers,
+      newCustomersCount: newCount,
+      returningCustomersCount,
+      returningRatePct,
+      averageLifetimeValue,
+      averagePurchaseFrequency,
+      segments: {
+        newCount,
+        regularCount,
+        highValueCount,
+      },
+      topCustomers: customerItems.slice(0, 15),
+      cached: false,
+    };
+
+    await this.setCache(cacheKey, result, 300);
+    return result;
+  }
+
+  // -------------------------------------------------------------
+  // PART 6: AI ANALYTICS INSIGHTS
+  // -------------------------------------------------------------
+
+  async getInsights(
+    userId: string,
+    role: UserRole,
+    storeId?: string,
+  ): Promise<InsightItem[]> {
+    const targetStoreId = await this.resolveStoreId(userId, role, storeId);
+
+    const insights = await this.prisma.insight.findMany({
+      where: { storeId: targetStoreId, isDismissed: false },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
+    if (insights.length === 0) {
+      return this.generateInsights(userId, role, targetStoreId);
+    }
+
+    return insights.map((i) => ({
+      id: i.id,
+      storeId: i.storeId,
+      userId: i.userId || userId,
+      type: i.type,
+      title: i.title,
+      message: i.message,
+      severity: i.severity,
+      metric: i.metric,
+      changeRate: i.changeRate ? Number(i.changeRate) : null,
+      metadata: i.metadata,
+      isDismissed: i.isDismissed,
+      createdAt: i.createdAt.toISOString(),
+      updatedAt: i.updatedAt.toISOString(),
+    }));
+  }
+
+  async generateInsights(
+    userId: string,
+    role: UserRole,
+    storeId?: string,
+  ): Promise<InsightItem[]> {
+    const targetStoreId = await this.resolveStoreId(userId, role, storeId);
+    const bounds = this.resolveDateRange(AnalyticsTimeRange.LAST_30_DAYS);
+
+    // Fetch comparative data
+    const [currentItems, prevItems, products] = await Promise.all([
+      this.prisma.orderItem.findMany({
+        where: {
+          storeId: targetStoreId,
+          createdAt: { gte: bounds.currentStart, lte: bounds.currentEnd },
+          order: {
+            status: { notIn: [OrderStatus.CANCELLED, OrderStatus.REFUNDED] },
+          },
+        },
+        select: { totalPrice: true, quantity: true, productId: true },
+      }),
+      this.prisma.orderItem.findMany({
+        where: {
+          storeId: targetStoreId,
+          createdAt: { gte: bounds.prevStart, lte: bounds.prevEnd },
+          order: {
+            status: { notIn: [OrderStatus.CANCELLED, OrderStatus.REFUNDED] },
+          },
+        },
+        select: { totalPrice: true },
+      }),
+      this.prisma.product.findMany({
+        where: { storeId: targetStoreId, status: { not: 'ARCHIVED' } },
+        select: { id: true, title: true, stockQuantity: true, price: true },
+        take: 20,
+      }),
+    ]);
+
+    const currentRevenue = currentItems.reduce(
+      (sum, i) => sum + Number(i.totalPrice),
+      0,
+    );
+    const prevRevenue = prevItems.reduce(
+      (sum, i) => sum + Number(i.totalPrice),
+      0,
+    );
+
+    const revenueGrowthPct =
+      prevRevenue > 0
+        ? Math.round(((currentRevenue - prevRevenue) / prevRevenue) * 1000) / 10
+        : currentRevenue > 0
+          ? 100
+          : 0;
+
+    // Remove existing non-dismissed to avoid duplicate noise
+    await this.prisma.insight.deleteMany({
+      where: { storeId: targetStoreId, isDismissed: false },
+    });
+
+    const insightsToCreate: Array<Prisma.InsightCreateInput> = [];
+
+    // 1. Sales Trend Insight
+    if (revenueGrowthPct >= 0) {
+      insightsToCreate.push({
+        store: { connect: { id: targetStoreId } },
+        user: { connect: { id: userId } },
+        type: InsightType.SALES,
+        severity: InsightSeverity.SUCCESS,
+        title: 'Sales Revenue is Growing',
+        message: `Your store sales increased by ${revenueGrowthPct}% over the past 30 days. High velocity products are maintaining strong demand.`,
+        metric: 'Net Revenue',
+        changeRate: new Prisma.Decimal(revenueGrowthPct),
+      });
+    } else {
+      insightsToCreate.push({
+        store: { connect: { id: targetStoreId } },
+        user: { connect: { id: userId } },
+        type: InsightType.SALES,
+        severity: InsightSeverity.WARNING,
+        title: 'Sales Decreased This Period',
+        message: `Your sales decreased ${Math.abs(revenueGrowthPct)}% this month. Launching a promotional campaign or discount on high-view products could reverse this trend.`,
+        metric: 'Net Revenue',
+        changeRate: new Prisma.Decimal(revenueGrowthPct),
+      });
+    }
+
+    // 2. Product / Inventory Insight
+    const lowStockItems = products.filter(
+      (p) => p.stockQuantity > 0 && p.stockQuantity <= 5,
+    );
+    const deadStockItems = products.filter(
+      (p) =>
+        p.stockQuantity > 10 &&
+        !currentItems.some((ci) => ci.productId === p.id),
+    );
+
+    if (lowStockItems.length > 0) {
+      insightsToCreate.push({
+        store: { connect: { id: targetStoreId } },
+        user: { connect: { id: userId } },
+        type: InsightType.INVENTORY,
+        severity: InsightSeverity.CRITICAL,
+        title: 'Critical Low Stock Alert',
+        message: `${lowStockItems.length} products (including "${lowStockItems[0].title}") have 5 or fewer units remaining in stock.`,
+        metric: 'Inventory',
+        changeRate: new Prisma.Decimal(-lowStockItems.length),
+      });
+    } else if (deadStockItems.length > 0) {
+      insightsToCreate.push({
+        store: { connect: { id: targetStoreId } },
+        user: { connect: { id: userId } },
+        type: InsightType.PRODUCTS,
+        severity: InsightSeverity.INFO,
+        title: 'Slow Moving Inventory Detected',
+        message: `"${deadStockItems[0].title}" has ample stock (${deadStockItems[0].stockQuantity} units) but zero orders this period. Try bundle pricing or spotlight promotions.`,
+        metric: 'Dead Stock',
+      });
+    }
+
+    // 3. Customer Retention Insight
+    insightsToCreate.push({
+      store: { connect: { id: targetStoreId } },
+      user: { connect: { id: userId } },
+      type: InsightType.CUSTOMERS,
+      severity: InsightSeverity.INFO,
+      title: 'Customer Retention Opportunity',
+      message:
+        'Targeting regular buyers with exclusive early access or loyalty incentives can drive a 20%+ increase in repeat order frequency.',
+      metric: 'Retention',
+    });
+
+    // Create records
+    await Promise.all(
+      insightsToCreate.map((data) => this.prisma.insight.create({ data })),
+    );
+
+    return this.getInsights(userId, role, targetStoreId);
+  }
+
+  async dismissInsight(
+    userId: string,
+    insightId: string,
+  ): Promise<{ success: boolean }> {
+    await this.prisma.insight.updateMany({
+      where: { id: insightId },
+      data: { isDismissed: true },
+    });
+    return { success: true };
+  }
+
+  // -------------------------------------------------------------
+  // PART 9: EXPORT SYSTEM (CSV FORMATTING & SANITIZATION)
+  // -------------------------------------------------------------
+
+  async exportReport(
+    userId: string,
+    role: UserRole,
+    query: ExportAnalyticsQueryDto,
+  ): Promise<{ filename: string; csv: string }> {
+    let targetStoreId: string | null = null;
+    if (role !== UserRole.ADMIN || query.storeId) {
+      targetStoreId = await this.resolveStoreId(userId, role, query.storeId);
+    }
+
+    const bounds = this.resolveDateRange(query.timeRange);
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    const escapeCsv = (val: any): string => {
+      if (val === null || val === undefined) return '""';
+      let str = String(val);
+      if (/^[=+\-@\t\r]/.test(str)) {
+        str = `'${str}`;
+      }
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+
+    if (query.type === ExportReportType.SALES) {
+      const orders = await this.prisma.order.findMany({
+        where: {
+          ...(targetStoreId
+            ? { items: { some: { storeId: targetStoreId } } }
+            : {}),
+          placedAt: { gte: bounds.currentStart, lte: bounds.currentEnd },
+        },
+        include: {
+          user: { select: { firstName: true, lastName: true, email: true } },
+          items: targetStoreId ? { where: { storeId: targetStoreId } } : true,
+          payments: {
+            select: { status: true },
+            take: 1,
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+        orderBy: { placedAt: 'desc' },
+      });
+
+      const headers = [
+        'Order ID',
+        'Date',
+        'Customer Name',
+        'Customer Email',
+        'Items Count',
+        'Total Amount',
+        'Status',
+        'Payment Status',
+      ];
+      const rows = orders.map((o) => {
+        const custName =
+          `${o.user?.firstName || ''} ${o.user?.lastName || ''}`.trim() ||
+          'Guest';
+        return [
+          escapeCsv(o.id),
+          escapeCsv(o.placedAt.toISOString()),
+          escapeCsv(custName),
+          escapeCsv(o.user?.email || 'N/A'),
+          escapeCsv(o.items.length),
+          escapeCsv(o.totalAmount),
+          escapeCsv(o.status),
+          escapeCsv(o.payments[0]?.status || 'PENDING'),
+        ].join(',');
+      });
+
+      return {
+        filename: `dokanos_sales_report_${dateStr}.csv`,
+        csv: [headers.join(','), ...rows].join('\n'),
+      };
+    }
+
+    if (query.type === ExportReportType.PRODUCTS) {
+      const products = await this.prisma.product.findMany({
+        where: {
+          ...(targetStoreId ? { storeId: targetStoreId } : {}),
+          status: { not: 'ARCHIVED' },
+        },
+        include: {
+          category: { select: { name: true } },
+          orderItems: {
+            where: {
+              createdAt: { gte: bounds.currentStart, lte: bounds.currentEnd },
+              order: {
+                status: {
+                  notIn: [OrderStatus.CANCELLED, OrderStatus.REFUNDED],
+                },
+              },
+            },
+            select: { quantity: true, totalPrice: true },
+          },
+        },
+      });
+
+      const headers = [
+        'Product ID',
+        'Title',
+        'SKU',
+        'Category',
+        'Price',
+        'Stock',
+        'Units Sold',
+        'Revenue',
+      ];
+      const rows = products.map((p) => {
+        const unitsSold = p.orderItems.reduce((acc, i) => acc + i.quantity, 0);
+        const revenue = p.orderItems.reduce(
+          (acc, i) => acc + Number(i.totalPrice),
+          0,
+        );
+        return [
+          escapeCsv(p.id),
+          escapeCsv(p.title),
+          escapeCsv(p.sku || ''),
+          escapeCsv(p.category?.name || 'Uncategorized'),
+          escapeCsv(p.price),
+          escapeCsv(p.stockQuantity),
+          escapeCsv(unitsSold),
+          escapeCsv(revenue.toFixed(2)),
+        ].join(',');
+      });
+
+      return {
+        filename: `dokanos_product_report_${dateStr}.csv`,
+        csv: [headers.join(','), ...rows].join('\n'),
+      };
+    }
+
+    if (query.type === ExportReportType.CUSTOMERS) {
+      const orders = await this.prisma.order.findMany({
+        where: {
+          ...(targetStoreId
+            ? { items: { some: { storeId: targetStoreId } } }
+            : {}),
+          status: { notIn: [OrderStatus.CANCELLED, OrderStatus.REFUNDED] },
+        },
+        include: {
+          user: {
+            select: { id: true, firstName: true, lastName: true, email: true },
+          },
+          items: targetStoreId ? { where: { storeId: targetStoreId } } : true,
+        },
+        orderBy: { placedAt: 'desc' },
+      });
+
+      const customerMap = new Map<
+        string,
+        {
+          name: string;
+          email: string;
+          count: number;
+          spend: number;
+          lastDate: Date;
+        }
+      >();
+
+      for (const o of orders) {
+        if (!o.user) continue;
+        const spend = o.items.reduce((acc, i) => acc + Number(i.totalPrice), 0);
+        const entry = customerMap.get(o.user.id) || {
+          name:
+            `${o.user.firstName || ''} ${o.user.lastName || ''}`.trim() ||
+            'Anonymous',
+          email: o.user.email || 'N/A',
+          count: 0,
+          spend: 0,
+          lastDate: o.placedAt,
+        };
+        entry.count += 1;
+        entry.spend += spend;
+        if (o.placedAt > entry.lastDate) entry.lastDate = o.placedAt;
+        customerMap.set(o.user.id, entry);
+      }
+
+      const headers = [
+        'Customer ID',
+        'Name',
+        'Email',
+        'Total Orders',
+        'Total Spent',
+        'Average Order Value',
+        'Last Order Date',
+      ];
+      const rows = Array.from(customerMap.entries()).map(([id, c]) =>
+        [
+          escapeCsv(id),
+          escapeCsv(c.name),
+          escapeCsv(c.email),
+          escapeCsv(c.count),
+          escapeCsv(c.spend.toFixed(2)),
+          escapeCsv((c.spend / c.count).toFixed(2)),
+          escapeCsv(c.lastDate.toISOString()),
+        ].join(','),
+      );
+
+      return {
+        filename: `dokanos_customers_report_${dateStr}.csv`,
+        csv: [headers.join(','), ...rows].join('\n'),
+      };
+    }
+
+    // Default to REVENUE report
+    const timeline = await this.prisma.order.groupBy({
+      by: ['placedAt'],
+      where: {
+        ...(targetStoreId
+          ? { items: { some: { storeId: targetStoreId } } }
+          : {}),
+        placedAt: { gte: bounds.currentStart, lte: bounds.currentEnd },
+        status: { notIn: [OrderStatus.CANCELLED, OrderStatus.REFUNDED] },
+      },
+      _count: { id: true },
+      _sum: { totalAmount: true },
+    });
+
+    const headers = ['Date', 'Orders Count', 'Total Gross Revenue'];
+    const rows = timeline.map((t) =>
+      [
+        escapeCsv(t.placedAt.toISOString().split('T')[0]),
+        escapeCsv(t._count.id),
+        escapeCsv(t._sum.totalAmount || 0),
+      ].join(','),
+    );
+
+    return {
+      filename: `dokanos_revenue_report_${dateStr}.csv`,
+      csv: [headers.join(','), ...rows].join('\n'),
+    };
   }
 
   // -------------------------------------------------------------

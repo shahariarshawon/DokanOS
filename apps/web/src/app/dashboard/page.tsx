@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { Navbar } from '@/components/navbar';
 import { Footer } from '@/components/footer';
+import { AnalyticsDashboard } from '@/components/analytics/analytics-dashboard';
 import {
   fetchProducts,
   fetchInventoryOverview,
@@ -1033,6 +1034,22 @@ export default function SellerDashboardPage() {
                 <span>Billing & Subscription</span>
                 <span className="ml-1 rounded-full bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 text-[10px] text-indigo-700 font-bold">
                   {billingData?.subscription?.plan?.tier || 'PRO'}
+                </span>
+              </button>
+
+              <button
+                data-testid="tab-analytics"
+                onClick={() => setActiveTab('analytics')}
+                className={`flex items-center gap-1.5 px-4 py-2.5 border-b-2 transition-all whitespace-nowrap ${
+                  activeTab === 'analytics'
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-zinc-500 hover:text-zinc-900'
+                }`}
+              >
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>Analytics & BI</span>
+                <span className="ml-1 rounded-full bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 text-[10px] text-indigo-700 font-bold">
+                  AI INSIGHTS
                 </span>
               </button>
 
@@ -2138,6 +2155,15 @@ export default function SellerDashboardPage() {
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* TAB 7: ADVANCED BUSINESS INTELLIGENCE & ANALYTICS */}
+            {activeTab === 'analytics' && (
+              <AnalyticsDashboard
+                onNotify={showToast}
+                defaultStoreId={storeData.id || 'store-apple-zone'}
+                isAdmin={false}
+              />
             )}
           </div>
         )}

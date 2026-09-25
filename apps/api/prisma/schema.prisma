@@ -129,7 +129,28 @@ enum AnalyticsEventType {
   REMOVE_FROM_CART
   SEARCH
   CHECKOUT_START
+  CHECKOUT
   PURCHASE
+  PRODUCT_CREATE
+  PRODUCT_UPDATE
+  ORDER_CREATED
+  PAYMENT_COMPLETED
+  REFUND
+}
+
+enum InsightType {
+  SALES
+  PRODUCTS
+  CUSTOMERS
+  INVENTORY
+  GENERAL
+}
+
+enum InsightSeverity {
+  INFO
+  SUCCESS
+  WARNING
+  CRITICAL
 }
 
 enum InventoryTransactionType {
@@ -198,6 +219,7 @@ model User {
   aiConversations            AIConversation[]
   aiUsages                   AIUsage[]
   auditLogs                  AuditLog[]
+  insights                   Insight[]
 
   @@index([role, status])
   @@index([createdAt])
@@ -261,6 +283,7 @@ model Store {
   followers       StoreFollower[]
   storeReviews    StoreReview[]
   reviewAnalysis  ReviewAnalysis?
+  insights        Insight[]
 
   @@index([sellerProfileId])
   @@index([status, rating])
@@ -921,6 +944,33 @@ model AuditLog {
   @@index([action, createdAt])
   @@index([resource, resourceId])
   @@map("audit_logs")
+}
+
+// -------------------------------------------------------------
+// AI BUSINESS INSIGHTS & ACTIONABLE INTELLIGENCE
+// -------------------------------------------------------------
+
+model Insight {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId     String?         @db.Uuid
+  userId      String?         @db.Uuid
+  type        InsightType     @default(GENERAL)
+  title       String          @db.VarChar(200)
+  message     String          @db.Text
+  severity    InsightSeverity @default(INFO)
+  metric      String?         @db.VarChar(100)
+  changeRate  Decimal?        @db.Decimal(6, 2)
+  metadata    Json?           @db.JsonB
+  isDismissed Boolean         @default(false)
+  createdAt   DateTime        @default(now()) @db.Timestamptz
+  updatedAt   DateTime        @updatedAt @db.Timestamptz
+
+  store       Store?          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user        User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([storeId, createdAt])
+  @@index([type, createdAt])
+  @@map("insights")
 }
 
 

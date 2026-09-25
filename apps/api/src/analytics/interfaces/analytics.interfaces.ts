@@ -123,3 +123,80 @@ export interface AdminDashboardResult {
   topStores: TopStoreItem[];
   cached: boolean;
 }
+
+export interface ProductPerformanceItem {
+  id: string;
+  title: string;
+  sku: string | null;
+  category: string | null;
+  price: number;
+  stock: number;
+  views: number;
+  orders: number;
+  unitsSold: number;
+  revenue: number;
+  conversionRate: number;
+  inventoryStatus: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
+}
+
+export interface ProductAnalyticsResult {
+  storeId: string;
+  timeRange: string;
+  topSelling: ProductPerformanceItem[];
+  lowPerforming: ProductPerformanceItem[];
+  outOfStock: ProductPerformanceItem[];
+  categoryPerformance: Array<{
+    category: string;
+    revenue: number;
+    unitsSold: number;
+  }>;
+  totalViews: number;
+  averageConversionRate: number;
+  cached: boolean;
+}
+
+export interface CustomerSegmentItem {
+  id: string;
+  name: string;
+  email: string | null;
+  ordersCount: number;
+  totalSpent: number;
+  averageOrderValue: number;
+  segment: 'NEW' | 'REGULAR' | 'HIGH_VALUE';
+  firstOrderDate: string;
+  lastOrderDate: string;
+}
+
+export interface CustomerAnalyticsResult {
+  storeId: string;
+  timeRange: string;
+  totalCustomers: number;
+  newCustomersCount: number;
+  returningCustomersCount: number;
+  returningRatePct: number;
+  averageLifetimeValue: number;
+  averagePurchaseFrequency: number;
+  segments: {
+    newCount: number;
+    regularCount: number;
+    highValueCount: number;
+  };
+  topCustomers: CustomerSegmentItem[];
+  cached: boolean;
+}
+
+export interface InsightItem {
+  id: string;
+  storeId: string | null;
+  userId: string;
+  type: string;
+  title: string;
+  message: string;
+  severity: string;
+  metric: string | null;
+  changeRate: number | null;
+  metadata?: any;
+  isDismissed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
