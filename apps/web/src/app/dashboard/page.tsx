@@ -40,6 +40,7 @@ import { Navbar } from '@/components/navbar';
 import { Footer } from '@/components/footer';
 import { AnalyticsDashboard } from '@/components/analytics/analytics-dashboard';
 import { AISalesCopilot } from '@/components/ai/ai-sales-copilot';
+import { AdminControlCenter } from '@/components/admin/admin-control-center';
 import {
   fetchProducts,
   fetchInventoryOverview,
@@ -660,128 +661,8 @@ export default function SellerDashboardPage() {
               </div>
             </div>
 
-            {/* Recent Payment Transactions Log */}
-            <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-2xs">
-              <div className="p-4 border-b border-zinc-100 flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-zinc-900">
-                    Payment Gateway Audit Log (Stripe & SSLCommerz)
-                  </h3>
-                  <p className="text-xs text-zinc-500">
-                    Real-time webhook and settlement transactions with cryptographic idempotency
-                    keys
-                  </p>
-                </div>
-                <span className="rounded-md bg-zinc-100 px-2 py-1 text-[10px] font-mono text-zinc-600">
-                  Idempotency Verified
-                </span>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-zinc-50/80 border-b border-zinc-200 text-zinc-500 font-semibold uppercase text-[10px] tracking-wider">
-                    <tr>
-                      <th className="py-3 px-4">Gateway</th>
-                      <th className="py-3 px-4">Transaction / Ref</th>
-                      <th className="py-3 px-4">Type</th>
-                      <th className="py-3 px-4">Amount</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4">Timestamp</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-100 font-mono text-[11px]">
-                    {adminRevenue?.recentTransactions &&
-                    adminRevenue.recentTransactions.length > 0 ? (
-                      adminRevenue.recentTransactions.map((tx: any) => (
-                        <tr key={tx.id} className="hover:bg-zinc-50/50">
-                          <td className="py-3 px-4">
-                            <span
-                              className={`px-2 py-0.5 rounded font-semibold text-[10px] ${
-                                tx.gateway === 'STRIPE'
-                                  ? 'bg-indigo-50 text-indigo-700'
-                                  : 'bg-emerald-50 text-emerald-700'
-                              }`}
-                            >
-                              {tx.gateway}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 font-mono text-zinc-900">
-                            {tx.transactionRef || tx.id}
-                          </td>
-                          <td className="py-3 px-4 font-sans text-zinc-600">{tx.type}</td>
-                          <td className="py-3 px-4 font-bold text-zinc-900">
-                            {formatPrice(tx.amount)} {tx.currency}
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              {tx.status}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-zinc-500 font-sans">
-                            {formatDate(tx.createdAt)}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <>
-                        <tr className="hover:bg-zinc-50/50">
-                          <td className="py-3 px-4">
-                            <span className="px-2 py-0.5 rounded font-semibold text-[10px] bg-indigo-50 text-indigo-700">
-                              STRIPE
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 font-mono text-zinc-900">
-                            cs_live_9a87d0f9831a
-                          </td>
-                          <td className="py-3 px-4 font-sans text-zinc-600">CUSTOMER_ORDER</td>
-                          <td className="py-3 px-4 font-bold text-zinc-900">$2,499.00 USD</td>
-                          <td className="py-3 px-4">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              COMPLETED
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-zinc-500 font-sans">Just now</td>
-                        </tr>
-                        <tr className="hover:bg-zinc-50/50">
-                          <td className="py-3 px-4">
-                            <span className="px-2 py-0.5 rounded font-semibold text-[10px] bg-emerald-50 text-emerald-700">
-                              SSLCOMMERZ
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 font-mono text-zinc-900">SSLC_TXN_8819204</td>
-                          <td className="py-3 px-4 font-sans text-zinc-600">CUSTOMER_ORDER</td>
-                          <td className="py-3 px-4 font-bold text-zinc-900">৳ 14,500.00 BDT</td>
-                          <td className="py-3 px-4">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              COMPLETED
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-zinc-500 font-sans">15 mins ago</td>
-                        </tr>
-                        <tr className="hover:bg-zinc-50/50">
-                          <td className="py-3 px-4">
-                            <span className="px-2 py-0.5 rounded font-semibold text-[10px] bg-indigo-50 text-indigo-700">
-                              STRIPE
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 font-mono text-zinc-900">sub_1Ok2M848a9s82</td>
-                          <td className="py-3 px-4 font-sans text-zinc-600">
-                            SELLER_SUBSCRIPTION (PRO)
-                          </td>
-                          <td className="py-3 px-4 font-bold text-zinc-900">$19.00 USD</td>
-                          <td className="py-3 px-4">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              COMPLETED
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-zinc-500 font-sans">1 hour ago</td>
-                        </tr>
-                      </>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            {/* Enterprise Admin Control Center */}
+            <AdminControlCenter />
           </div>
         ) : (
           /* Seller Dashboard Main View */

@@ -190,7 +190,7 @@ export default function ProductDetailPage() {
               '@context': 'https://schema.org/',
               '@type': 'Product',
               name: product.title,
-              image: [product.primaryImage, ...(product.galleryImages || [])],
+              image: [product.primaryImage, ...(product.images || [])],
               description: product.description,
               sku: activeSku,
               offers: {

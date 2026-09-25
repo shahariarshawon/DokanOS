@@ -51,7 +51,10 @@ export function Navbar() {
             </Link>
 
             {/* Navigation Links */}
-            <nav className="hidden md:flex items-center gap-1">
+            <nav
+              aria-label="Main Platform Navigation"
+              className="hidden md:flex items-center gap-1"
+            >
               {navLinks.map((link) => {
                 const Icon = link.icon;
                 const isActive = pathname === link.href;
@@ -59,13 +62,14 @@ export function Navbar() {
                   <Link
                     key={link.name}
                     href={link.href}
+                    aria-current={isActive ? 'page' : undefined}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                       isActive
                         ? 'bg-zinc-100 text-zinc-900 font-semibold'
                         : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50'
                     }`}
                   >
-                    <Icon className="w-3.5 h-3.5" />
+                    <Icon className="w-3.5 h-3.5" aria-hidden="true" />
                     <span>{link.name}</span>
                   </Link>
                 );
@@ -77,9 +81,10 @@ export function Navbar() {
           <div className="flex items-center gap-3">
             <Link
               href="/products"
+              aria-label="Search marketplace products"
               className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-600 text-xs transition-colors"
             >
-              <Search className="w-3.5 h-3.5 text-zinc-400" />
+              <Search className="w-3.5 h-3.5 text-zinc-400" aria-hidden="true" />
               <span>Search marketplace...</span>
               <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-white border border-zinc-200 rounded text-zinc-400">
                 ⌘K
@@ -93,9 +98,10 @@ export function Navbar() {
               id="header-cart-btn"
               data-testid="header-cart-btn"
               href="/cart"
+              aria-label={`Shopping Cart with ${itemCount} items`}
               className="relative flex items-center gap-2 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-800 transition-all shadow-xs"
             >
-              <ShoppingBag className="w-4 h-4 text-zinc-600" />
+              <ShoppingBag className="w-4 h-4 text-zinc-600" aria-hidden="true" />
               <span className="hidden sm:inline">Cart</span>
               <span
                 id="cart-badge-count"

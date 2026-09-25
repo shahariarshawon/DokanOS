@@ -526,6 +526,7 @@ export interface StoreDetails {
   businessCategory: string;
   contactEmail: string;
   contactPhone: string;
+  address?: string;
   socialLinks: {
     twitter?: string;
     instagram?: string;

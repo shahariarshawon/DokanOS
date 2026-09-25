@@ -44,6 +44,16 @@ export function AIShoppingAssistantWidget() {
   const [messages, setMessages] = useState<ChatMessage[]>([defaultWelcomeMessage]);
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
         const stored = localStorage.getItem('dokanos_ai_conversations');
@@ -168,28 +178,38 @@ export function AIShoppingAssistantWidget() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-3 shadow-2xl transition-all duration-300 transform hover:scale-105"
+          aria-label="Open AI Shopping Assistant"
+          aria-expanded={isOpen}
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-3 shadow-2xl transition-all duration-300 transform hover:scale-105 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2"
         >
-          <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" />
+          <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" aria-hidden="true" />
           <span className="text-xs">Ask AI Shopping Assistant</span>
         </button>
       )}
 
       {/* Slide-over Drawer Chat Interface */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/30 backdrop-blur-2xs animate-fade-in">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="DokanOS AI Commerce Assistant"
+          className="fixed inset-0 z-50 flex justify-end bg-black/30 backdrop-blur-2xs animate-fade-in"
+        >
           <div className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col justify-between border-l border-zinc-200">
             {/* Header */}
             <div className="p-4 bg-zinc-900 text-white flex items-center justify-between border-b border-zinc-800">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-indigo-600/30 border border-indigo-400/40 text-amber-300">
-                  <Sparkles className="w-4 h-4" />
+                  <Sparkles className="w-4 h-4" aria-hidden="true" />
                 </div>
                 <div>
                   <h3 className="text-xs font-bold tracking-wide">DokanOS AI Commerce Assistant</h3>
                   <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" /> RAG &
-                    pgvector active
+                    <span
+                      className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping"
+                      aria-hidden="true"
+                    />{' '}
+                    RAG & pgvector active
                   </span>
                 </div>
               </div>
@@ -197,17 +217,19 @@ export function AIShoppingAssistantWidget() {
                 <button
                   type="button"
                   onClick={handleClearHistory}
+                  aria-label="Reset conversation memory"
                   title="Reset conversation memory"
-                  className="text-zinc-400 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800 transition-colors flex items-center gap-1 text-[11px]"
+                  className="text-zinc-400 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800 transition-colors flex items-center gap-1 text-[11px] cursor-pointer focus:outline-none focus:ring-1 focus:ring-white"
                 >
-                  <RotateCcw className="w-3.5 h-3.5" />
+                  <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
                   <span className="hidden sm:inline">Reset</span>
                 </button>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="text-zinc-400 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
+                  aria-label="Close AI Shopping Assistant"
+                  className="text-zinc-400 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-white"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-5 h-5" aria-hidden="true" />
                 </button>
               </div>
             </div>

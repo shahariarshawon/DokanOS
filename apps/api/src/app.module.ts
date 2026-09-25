@@ -6,6 +6,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { LoggingMiddleware } from './common/middleware/logging.middleware.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
+import { TenantGuard } from './common/guards/tenant.guard.js';
 import { DatabaseModule } from './database/database.module.js';
 import { UsersModule } from './users/users.module.js';
 import { AuthModule } from './auth/auth.module.js';
@@ -69,6 +70,10 @@ import { RateLimitGuard } from './common/guards/rate-limit.guard.js';
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: TenantGuard,
     },
     {
       provide: APP_FILTER,

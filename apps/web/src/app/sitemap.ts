@@ -42,7 +42,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // Storefront routes
-  const storeRoutes: MetadataRoute.Sitemap = MOCK_STORES.map((store) => ({
+  const storeRoutes: MetadataRoute.Sitemap = Object.values(MOCK_STORES).map((store) => ({
     url: `${baseUrl}/store/${store.slug}`,
     lastModified: currentDate,
     changeFrequency: 'daily',

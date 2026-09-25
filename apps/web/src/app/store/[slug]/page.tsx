@@ -68,6 +68,9 @@ function StorefrontContent() {
         if (storeData) {
           setStore(storeData);
           setFollowerCount(storeData.followerCount || 0);
+          if (typeof document !== 'undefined') {
+            document.title = `${storeData.name} Storefront | DokanOS Multi-Vendor SaaS`;
+          }
 
           // Filter products matching this store ID or store Slug
           const matchingProducts = productsRes.data.filter(
@@ -186,6 +189,25 @@ function StorefrontContent() {
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50/50">
       <Navbar />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org/',
+            '@type': 'OnlineStore',
+            name: store.name,
+            description: store.description,
+            url: `https://dokanos.com/store/${store.slug}`,
+            image: store.logoUrl,
+            telephone: store.contactPhone,
+            email: store.contactEmail,
+            address: {
+              '@type': 'PostalAddress',
+              addressLocality: store.address || 'Global Marketplace',
+            },
+          }),
+        }}
+      />
 
       {/* Floating Toast Notification */}
       {toastMessage && (
