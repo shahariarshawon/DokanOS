@@ -20,6 +20,15 @@ export class CreateConversationDto {
   orderId?: string;
 
   @ApiPropertyOptional({
+    description: 'Conversation type (HUMAN_CHAT, AI_CHAT)',
+    enum: ['HUMAN_CHAT', 'AI_CHAT'],
+    default: 'HUMAN_CHAT',
+  })
+  @IsString()
+  @IsOptional()
+  type?: 'HUMAN_CHAT' | 'AI_CHAT';
+
+  @ApiPropertyOptional({
     description:
       'Optional first message to automatically send upon thread creation',
     example: 'Hello! Is this item available in size L?',

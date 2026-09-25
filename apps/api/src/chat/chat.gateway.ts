@@ -178,6 +178,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     payload: {
       conversationId: string;
       content: string;
+      type?: 'TEXT' | 'IMAGE' | 'FILE';
       attachments?: SendMessageDto['attachments'];
     },
   ): Promise<{ status: string; data: unknown }> {
@@ -195,6 +196,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       payload.conversationId,
       {
         content: payload.content,
+        type: payload.type,
         attachments: payload.attachments,
       },
     );

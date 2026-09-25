@@ -3,6 +3,7 @@ import { PrismaService } from '../database/prisma.service.js';
 import { CreateNotificationDto } from './dto/create-notification.dto.js';
 import { QueryNotificationDto } from './dto/query-notification.dto.js';
 import { NotificationsGateway } from './notifications.gateway.js';
+import { EmailService } from './email.service.js';
 import { Notification, NotificationType, Prisma } from '@prisma/client';
 
 export interface PaginatedNotifications {
@@ -23,6 +24,7 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: NotificationsGateway,
+    private readonly emailService: EmailService,
   ) {}
 
   /**
@@ -31,7 +33,7 @@ export class NotificationsService {
   async createAndDispatch(dto: CreateNotificationDto): Promise<Notification> {
     const user = await this.prisma.user.findUnique({
       where: { id: dto.userId },
-      select: { id: true },
+      select: { id: true, email: true },
     });
 
     if (!user) {
@@ -43,6 +45,7 @@ export class NotificationsService {
         userId: dto.userId,
         type: dto.type,
         title: dto.title,
+        message: dto.body,
         body: dto.body,
         payload: (dto.payload as Prisma.InputJsonValue) ?? Prisma.JsonNull,
       },
@@ -189,9 +192,10 @@ export class NotificationsService {
       orderNumber: string;
       status: string;
       totalAmount: number | string;
+      userEmail?: string;
     },
   ): Promise<Notification> {
-    return this.createAndDispatch({
+    const notification = await this.createAndDispatch({
       userId,
       type: NotificationType.ORDER_STATUS,
       title: `Order #${data.orderNumber} Status: ${data.status}`,
@@ -202,6 +206,20 @@ export class NotificationsService {
         status: data.status,
       },
     });
+
+    if (data.userEmail) {
+      this.emailService
+        .sendOrderConfirmation(data.userEmail, {
+          orderNumber: data.orderNumber,
+          totalAmount: data.totalAmount,
+          itemsCount: 1,
+        })
+        .catch((err) =>
+          this.logger.warn(`Failed to dispatch order email: ${err.message}`),
+        );
+    }
+
+    return notification;
   }
 
   /**
@@ -215,9 +233,11 @@ export class NotificationsService {
       amount: number | string;
       currency: string;
       provider: string;
+      userEmail?: string;
+      transactionId?: string;
     },
   ): Promise<Notification> {
-    return this.createAndDispatch({
+    const notification = await this.createAndDispatch({
       userId,
       type: NotificationType.PAYMENT_SUCCESS,
       title: `Payment Received for #${data.orderNumber}`,
@@ -229,6 +249,24 @@ export class NotificationsService {
         provider: data.provider,
       },
     });
+
+    if (data.userEmail) {
+      this.emailService
+        .sendPaymentReceipt(data.userEmail, {
+          orderNumber: data.orderNumber,
+          amount: data.amount,
+          currency: data.currency,
+          provider: data.provider,
+          transactionId: data.transactionId || `tx_${Date.now()}`,
+        })
+        .catch((err) =>
+          this.logger.warn(
+            `Failed to dispatch payment receipt email: ${err.message}`,
+          ),
+        );
+    }
+
+    return notification;
   }
 
   /**

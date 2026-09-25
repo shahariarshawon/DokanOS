@@ -12,9 +12,11 @@ import {
   Layers,
   ArrowRight,
   Sparkles,
+  MessageSquare,
 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { AIShoppingAssistantWidget } from './ai-shopping-assistant';
+import { NotificationBellDropdown } from './notification-bell';
 
 export function Navbar() {
   const pathname = usePathname();
@@ -23,6 +25,7 @@ export function Navbar() {
   const navLinks = [
     { name: 'Storefront', href: '/products', icon: Layers },
     { name: 'Pricing & Plans', href: '/pricing', icon: Sparkles },
+    { name: 'Messages', href: '/inbox', icon: MessageSquare },
     { name: 'My Orders', href: '/orders', icon: Package },
     { name: 'Seller Dashboard', href: '/dashboard', icon: LayoutDashboard },
   ];
@@ -82,6 +85,9 @@ export function Navbar() {
                 ⌘K
               </kbd>
             </Link>
+
+            {/* Notification Bell Dropdown */}
+            <NotificationBellDropdown />
 
             <Link
               id="header-cart-btn"

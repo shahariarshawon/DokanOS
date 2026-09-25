@@ -27,7 +27,26 @@ describe('NotificationsService', () => {
       emitNotificationToUser: vi.fn(),
     };
 
-    service = new NotificationsService(prismaMock, gatewayMock);
+    const emailMock = {
+      sendEmail: vi
+        .fn()
+        .mockResolvedValue({ messageId: 'm1', delivered: true }),
+      sendOrderConfirmation: vi
+        .fn()
+        .mockResolvedValue({ messageId: 'm1', delivered: true }),
+      sendPaymentReceipt: vi
+        .fn()
+        .mockResolvedValue({ messageId: 'm2', delivered: true }),
+      sendSubscriptionUpdate: vi
+        .fn()
+        .mockResolvedValue({ messageId: 'm3', delivered: true }),
+    };
+
+    service = new NotificationsService(
+      prismaMock,
+      gatewayMock,
+      emailMock as any,
+    );
   });
 
   describe('createAndDispatch', () => {
@@ -58,7 +77,7 @@ describe('NotificationsService', () => {
 
       expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
         where: { id: 'user-123' },
-        select: { id: true },
+        select: { id: true, email: true },
       });
       expect(prismaMock.notification.create).toHaveBeenCalled();
       expect(gatewayMock.emitNotificationToUser).toHaveBeenCalledWith(

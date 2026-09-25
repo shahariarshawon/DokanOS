@@ -34,6 +34,7 @@ import {
   Receipt,
   ExternalLink,
   Loader2,
+  MessageSquare,
 } from 'lucide-react';
 import { Navbar } from '@/components/navbar';
 import { Footer } from '@/components/footer';
@@ -62,7 +63,7 @@ export default function SellerDashboardPage() {
   const [dashboardView, setDashboardView] = useState<'seller' | 'admin'>('seller');
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
   const [activeTab, setActiveTab] = useState<
-    'products' | 'store_builder' | 'inventory' | 'orders' | 'billing' | 'analytics'
+    'products' | 'store_builder' | 'inventory' | 'orders' | 'billing' | 'messages' | 'analytics'
   >('products');
   const [storeSubTab, setStoreSubTab] = useState<
     'profile' | 'theme' | 'sections' | 'analytics' | 'reviews'
@@ -1034,6 +1035,17 @@ export default function SellerDashboardPage() {
                   {billingData?.subscription?.plan?.tier || 'PRO'}
                 </span>
               </button>
+
+              <Link
+                href="/inbox"
+                className="flex items-center gap-1.5 px-4 py-2.5 border-b-2 border-transparent text-zinc-500 hover:text-zinc-900 transition-all whitespace-nowrap"
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Customer Inquiries</span>
+                <span className="ml-1 rounded-full bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 text-[10px] text-emerald-700 font-bold">
+                  LIVE CHAT
+                </span>
+              </Link>
             </div>
 
             {/* TAB 1: PRODUCT MANAGEMENT TABLE */}

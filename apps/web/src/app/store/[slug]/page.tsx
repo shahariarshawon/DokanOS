@@ -295,11 +295,19 @@ function StorefrontContent() {
                 )}
               </button>
 
+              <Link
+                href={`/inbox?storeId=${store.id}&storeName=${encodeURIComponent(store.name)}`}
+                className="flex items-center gap-2 rounded-xl bg-white hover:bg-zinc-100 px-4 py-2.5 text-xs font-semibold text-zinc-900 transition-all shadow-md"
+              >
+                <MessageSquare className="w-4 h-4 text-indigo-600" />
+                <span>Chat with Seller</span>
+              </Link>
+
               <button
                 onClick={() => setShowReviewModal(true)}
                 className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 px-4 py-2.5 text-xs font-semibold text-white transition-all shadow-md"
               >
-                <MessageSquare className="w-4 h-4 text-indigo-300" />
+                <Star className="w-4 h-4 text-amber-300" />
                 <span>Write Review</span>
               </button>
             </div>

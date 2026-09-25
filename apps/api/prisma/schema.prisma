@@ -87,7 +87,29 @@ enum SubscriptionTier {
   ENTERPRISE
 }
 
+enum ConversationType {
+  HUMAN_CHAT
+  AI_CHAT
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+}
+
 enum NotificationType {
+  ORDER
+  PAYMENT
+  CHAT
+  SUBSCRIPTION
+  SYSTEM
   ORDER_STATUS
   PAYMENT_SUCCESS
   PAYMENT_FAILED
@@ -596,40 +618,46 @@ model ProductEmbedding {
 // -------------------------------------------------------------
 
 model Conversation {
-  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  customerId    String    @db.Uuid
-  storeId       String    @db.Uuid
-  orderId       String?   @db.Uuid
-  lastMessageAt DateTime  @default(now()) @db.Timestamptz
-  createdAt     DateTime  @default(now()) @db.Timestamptz
-  updatedAt     DateTime  @updatedAt @db.Timestamptz
+  id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  customerId    String           @db.Uuid
+  sellerId      String?          @db.Uuid
+  storeId       String           @db.Uuid
+  orderId       String?          @db.Uuid
+  type          ConversationType @default(HUMAN_CHAT)
+  lastMessageAt DateTime         @default(now()) @db.Timestamptz
+  createdAt     DateTime         @default(now()) @db.Timestamptz
+  updatedAt     DateTime         @updatedAt @db.Timestamptz
 
-  customer      User      @relation("CustomerConversations", fields: [customerId], references: [id], onDelete: Restrict)
-  store         Store     @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  order         Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  customer      User             @relation("CustomerConversations", fields: [customerId], references: [id], onDelete: Restrict)
+  store         Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  order         Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
   messages      Message[]
 
   @@unique([customerId, storeId, orderId])
   @@index([customerId, lastMessageAt])
   @@index([storeId, lastMessageAt])
+  @@index([sellerId, lastMessageAt])
   @@map("conversations")
 }
 
 model Message {
-  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  conversationId String       @db.Uuid
-  senderId       String       @db.Uuid
-  content        String       @db.Text
-  attachments    Json?        @db.JsonB
-  isRead         Boolean      @default(false)
-  readAt         DateTime?    @db.Timestamptz
-  createdAt      DateTime     @default(now()) @db.Timestamptz
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId String        @db.Uuid
+  senderId       String        @db.Uuid
+  content        String        @db.Text
+  type           MessageType   @default(TEXT)
+  status         MessageStatus @default(SENT)
+  attachments    Json?         @db.JsonB
+  isRead         Boolean       @default(false)
+  readAt         DateTime?     @db.Timestamptz
+  createdAt      DateTime      @default(now()) @db.Timestamptz
 
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender         User         @relation(fields: [senderId], references: [id], onDelete: Restrict)
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User          @relation(fields: [senderId], references: [id], onDelete: Restrict)
 
   @@index([conversationId, createdAt])
   @@index([senderId, isRead])
+  @@index([status])
   @@map("messages")
 }
 
@@ -638,6 +666,7 @@ model Notification {
   userId    String           @db.Uuid
   type      NotificationType
   title     String           @db.VarChar(200)
+  message   String?          @db.Text
   body      String           @db.Text
   payload   Json?            @db.JsonB
   isRead    Boolean          @default(false)

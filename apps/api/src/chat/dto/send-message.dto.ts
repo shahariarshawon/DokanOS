@@ -18,6 +18,15 @@ export class SendMessageDto {
   content!: string;
 
   @ApiPropertyOptional({
+    description: 'Message type (TEXT, IMAGE, FILE)',
+    enum: ['TEXT', 'IMAGE', 'FILE'],
+    default: 'TEXT',
+  })
+  @IsString()
+  @IsOptional()
+  type?: 'TEXT' | 'IMAGE' | 'FILE';
+
+  @ApiPropertyOptional({
     description:
       'Array of uploaded attachment objects (e.g. images, invoices, receipts)',
     example: [

@@ -234,10 +234,19 @@ export default function ProductDetailPage() {
             {/* Store and Rating Header */}
             <div>
               <div className="flex items-center justify-between text-xs text-zinc-500 mb-2">
-                <span className="flex items-center gap-1.5 font-medium text-zinc-700">
-                  <Store className="w-3.5 h-3.5 text-zinc-400" />
-                  Sold by <span className="font-semibold text-zinc-900">{product.storeName}</span>
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1.5 font-medium text-zinc-700">
+                    <Store className="w-3.5 h-3.5 text-zinc-400" />
+                    Sold by <span className="font-semibold text-zinc-900">{product.storeName}</span>
+                  </span>
+                  <Link
+                    href={`/inbox?storeId=${product.storeId || 'store-apple-zone'}&storeName=${encodeURIComponent(product.storeName)}`}
+                    className="inline-flex items-center gap-1 rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[10px] font-bold text-indigo-700 hover:bg-indigo-100 transition-colors"
+                  >
+                    <MessageSquare className="w-2.5 h-2.5" />
+                    <span>Message Seller</span>
+                  </Link>
+                </div>
                 <div className="flex items-center gap-1 text-amber-500 font-semibold text-xs">
                   <Star className="w-3.5 h-3.5 fill-amber-400" />
                   <span>{product.rating}</span>

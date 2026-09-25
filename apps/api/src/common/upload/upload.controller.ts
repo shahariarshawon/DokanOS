@@ -38,4 +38,25 @@ export class UploadController {
   async uploadImage(@UploadedFile() file: any) {
     return this.uploadService.processImageUpload(file);
   }
+
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Upload chat document or attachment (PDF, DOCX, images up to 10MB)',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @Post('file')
+  @HttpCode(HttpStatus.CREATED)
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadFile(@UploadedFile() file: any) {
+    return this.uploadService.processFileUpload(file);
+  }
 }

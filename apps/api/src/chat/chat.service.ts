@@ -228,11 +228,14 @@ export class ChatService {
     });
 
     if (!conversation) {
+      const sellerId = store.sellerProfile.userId;
       const created = await this.prisma.conversation.create({
         data: {
           customerId: userId,
+          sellerId,
           storeId: dto.storeId,
           orderId: dto.orderId ?? null,
+          type: dto.type === 'AI_CHAT' ? 'AI_CHAT' : 'HUMAN_CHAT',
         },
         include: {
           store: {
@@ -466,11 +469,16 @@ export class ChatService {
       conversationId,
     );
 
+    const messageType =
+      dto.type ||
+      (dto.attachments && dto.attachments.length > 0 ? 'FILE' : 'TEXT');
     const message = await this.prisma.message.create({
       data: {
         conversationId,
         senderId,
         content: dto.content,
+        type: messageType,
+        status: 'SENT',
         attachments: dto.attachments
           ? (dto.attachments as Prisma.InputJsonValue)
           : Prisma.JsonNull,
@@ -541,6 +549,7 @@ export class ChatService {
       },
       data: {
         isRead: true,
+        status: 'READ',
         readAt,
       },
     });

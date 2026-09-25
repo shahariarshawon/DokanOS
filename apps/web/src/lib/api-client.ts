@@ -1180,3 +1180,542 @@ export async function fetchAdminRevenueOverview() {
     ],
   };
 }
+
+// -------------------------------------------------------------
+// REAL-TIME CHAT & NOTIFICATIONS CLIENT (PHASE 5)
+// -------------------------------------------------------------
+
+export interface ChatMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  content: string;
+  type: 'TEXT' | 'IMAGE' | 'FILE';
+  status: 'SENT' | 'DELIVERED' | 'READ';
+  attachments?: Array<{
+    url: string;
+    fileName?: string;
+    fileType?: string;
+    size?: number;
+  }> | null;
+  isRead: boolean;
+  readAt?: string | null;
+  createdAt: string;
+  sender?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    avatarUrl?: string | null;
+    role?: string;
+  };
+}
+
+export interface ConversationItem {
+  id: string;
+  customerId: string;
+  sellerId?: string | null;
+  storeId: string;
+  orderId?: string | null;
+  type?: 'HUMAN_CHAT' | 'AI_CHAT';
+  lastMessageAt: string;
+  createdAt: string;
+  updatedAt: string;
+  store: {
+    id: string;
+    name: string;
+    slug: string;
+    logoUrl?: string | null;
+    sellerProfile?: {
+      userId: string;
+      businessName: string;
+    };
+  };
+  customer: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    avatarUrl?: string | null;
+  };
+  order?: {
+    id: string;
+    orderNumber: string;
+    status: string;
+    totalAmount: number;
+  } | null;
+  latestMessage?: ChatMessage | null;
+  unreadCount: number;
+}
+
+export interface NotificationItem {
+  id: string;
+  userId: string;
+  type: 'ORDER' | 'PAYMENT' | 'CHAT' | 'SUBSCRIPTION' | 'SYSTEM' | string;
+  title: string;
+  message?: string;
+  body: string;
+  payload?: any;
+  isRead: boolean;
+  readAt?: string | null;
+  createdAt: string;
+}
+
+// In-memory fallback stores for Chat & Notifications
+let localConversations: ConversationItem[] = [
+  {
+    id: 'conv-apple-zone-1',
+    customerId: 'user-customer-1',
+    sellerId: 'user-seller-apple',
+    storeId: 'store-apple-zone',
+    orderId: 'ord-apple-101',
+    type: 'HUMAN_CHAT',
+    lastMessageAt: new Date().toISOString(),
+    createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
+    updatedAt: new Date().toISOString(),
+    store: {
+      id: 'store-apple-zone',
+      name: 'Apple Zone Official',
+      slug: 'apple-zone',
+      logoUrl:
+        'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=300&auto=format&fit=crop&q=80',
+      sellerProfile: {
+        userId: 'user-seller-apple',
+        businessName: 'Apple Zone Authorized Reseller',
+      },
+    },
+    customer: {
+      id: 'user-customer-1',
+      firstName: 'Shahariar',
+      lastName: 'Shawon',
+      avatarUrl:
+        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
+    },
+    order: {
+      id: 'ord-apple-101',
+      orderNumber: 'DOK-2026-98124',
+      status: 'PAID',
+      totalAmount: 1199,
+    },
+    latestMessage: {
+      id: 'msg-1',
+      conversationId: 'conv-apple-zone-1',
+      senderId: 'user-seller-apple',
+      content:
+        'Hello! Yes, the iPhone 15 Pro Max Natural Titanium is in stock and ships within 24 hours.',
+      type: 'TEXT',
+      status: 'READ',
+      isRead: true,
+      readAt: new Date().toISOString(),
+      createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+      sender: {
+        id: 'user-seller-apple',
+        firstName: 'Apple Zone',
+        lastName: 'Support',
+        avatarUrl:
+          'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=300&auto=format&fit=crop&q=80',
+      },
+    },
+    unreadCount: 0,
+  },
+  {
+    id: 'conv-sony-audio-2',
+    customerId: 'user-customer-1',
+    sellerId: 'user-seller-sony',
+    storeId: 'store-sony-audio',
+    orderId: null,
+    type: 'HUMAN_CHAT',
+    lastMessageAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+    createdAt: new Date(Date.now() - 3600000 * 48).toISOString(),
+    updatedAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+    store: {
+      id: 'store-sony-audio',
+      name: 'Sony Acoustics Studio',
+      slug: 'sony-acoustics',
+      logoUrl:
+        'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&auto=format&fit=crop&q=80',
+      sellerProfile: {
+        userId: 'user-seller-sony',
+        businessName: 'Sony Acoustics Corp',
+      },
+    },
+    customer: {
+      id: 'user-customer-1',
+      firstName: 'Shahariar',
+      lastName: 'Shawon',
+      avatarUrl:
+        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
+    },
+    order: null,
+    latestMessage: {
+      id: 'msg-2',
+      conversationId: 'conv-sony-audio-2',
+      senderId: 'user-customer-1',
+      content: 'Do you offer international warranty for the WH-1000XM5 headphones?',
+      type: 'TEXT',
+      status: 'DELIVERED',
+      isRead: false,
+      createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+      sender: {
+        id: 'user-customer-1',
+        firstName: 'Shahariar',
+        lastName: 'Shawon',
+      },
+    },
+    unreadCount: 1,
+  },
+];
+
+let localMessages: Record<string, ChatMessage[]> = {
+  'conv-apple-zone-1': [
+    {
+      id: 'msg-0',
+      conversationId: 'conv-apple-zone-1',
+      senderId: 'user-customer-1',
+      content: 'Hello, is the iPhone 15 Pro Max 256GB available in stock?',
+      type: 'TEXT',
+      status: 'READ',
+      isRead: true,
+      readAt: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
+      createdAt: new Date(Date.now() - 1000 * 60 * 22).toISOString(),
+      sender: {
+        id: 'user-customer-1',
+        firstName: 'Shahariar',
+        lastName: 'Shawon',
+      },
+    },
+    {
+      id: 'msg-1',
+      conversationId: 'conv-apple-zone-1',
+      senderId: 'user-seller-apple',
+      content:
+        'Hello! Yes, the iPhone 15 Pro Max Natural Titanium is in stock and ships within 24 hours.',
+      type: 'TEXT',
+      status: 'READ',
+      isRead: true,
+      readAt: new Date().toISOString(),
+      createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+      sender: {
+        id: 'user-seller-apple',
+        firstName: 'Apple Zone',
+        lastName: 'Support',
+        avatarUrl:
+          'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=300&auto=format&fit=crop&q=80',
+      },
+    },
+  ],
+  'conv-sony-audio-2': [
+    {
+      id: 'msg-2',
+      conversationId: 'conv-sony-audio-2',
+      senderId: 'user-customer-1',
+      content: 'Do you offer international warranty for the WH-1000XM5 headphones?',
+      type: 'TEXT',
+      status: 'DELIVERED',
+      isRead: false,
+      createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+      sender: {
+        id: 'user-customer-1',
+        firstName: 'Shahariar',
+        lastName: 'Shawon',
+      },
+    },
+  ],
+};
+
+let localNotifications: NotificationItem[] = [
+  {
+    id: 'notif-1',
+    userId: 'user-customer-1',
+    type: 'PAYMENT',
+    title: 'Payment Successful',
+    body: 'Your payment of $1,199.00 for order #DOK-2026-98124 was confirmed via Stripe.',
+    isRead: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
+    payload: { orderNumber: 'DOK-2026-98124', amount: 1199 },
+  },
+  {
+    id: 'notif-2',
+    userId: 'user-customer-1',
+    type: 'ORDER',
+    title: 'Order Shipped via Express DHL',
+    body: 'Package is in transit with tracking #DHL-9920148. Estimated arrival in 2 days.',
+    isRead: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
+    payload: { trackingNumber: 'DHL-9920148' },
+  },
+  {
+    id: 'notif-3',
+    userId: 'user-customer-1',
+    type: 'CHAT',
+    title: 'New Message from Apple Zone',
+    body: 'Hello! Yes, the iPhone 15 Pro Max Natural Titanium is in stock...',
+    isRead: true,
+    createdAt: new Date(Date.now() - 1000 * 60 * 55).toISOString(),
+    payload: { conversationId: 'conv-apple-zone-1' },
+  },
+  {
+    id: 'notif-4',
+    userId: 'user-customer-1',
+    type: 'SUBSCRIPTION',
+    title: 'SaaS PRO Plan Activated',
+    body: 'Welcome to DokanOS PRO! Unlimited listings and AI Seller Copilot are now unlocked.',
+    isRead: true,
+    createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
+  },
+];
+
+export async function fetchConversations(): Promise<ConversationItem[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/chat/conversations`);
+    if (res.ok) {
+      const json = await res.json();
+      return json.data || json;
+    }
+  } catch {
+    // Fallback
+  }
+  return localConversations;
+}
+
+export async function createConversation(payload: {
+  storeId: string;
+  orderId?: string;
+  initialMessage?: string;
+  type?: 'HUMAN_CHAT' | 'AI_CHAT';
+}): Promise<ConversationItem> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/chat/conversations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback
+  }
+
+  const existing = localConversations.find(
+    (c) => c.storeId === payload.storeId && (!payload.orderId || c.orderId === payload.orderId),
+  );
+  if (existing) {
+    if (payload.initialMessage) {
+      await sendChatMessage(existing.id, { content: payload.initialMessage });
+    }
+    return existing;
+  }
+
+  const newConv: ConversationItem = {
+    id: `conv_${Date.now()}`,
+    customerId: 'user-customer-1',
+    sellerId: 'user-seller-apple',
+    storeId: payload.storeId,
+    orderId: payload.orderId || null,
+    type: payload.type || 'HUMAN_CHAT',
+    lastMessageAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    store: {
+      id: payload.storeId,
+      name: 'Seller Store',
+      slug: 'seller-store',
+      logoUrl:
+        'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=300&auto=format&fit=crop&q=80',
+    },
+    customer: {
+      id: 'user-customer-1',
+      firstName: 'Shahariar',
+      lastName: 'Shawon',
+    },
+    order: null,
+    unreadCount: 0,
+  };
+
+  localConversations.unshift(newConv);
+  if (payload.initialMessage) {
+    await sendChatMessage(newConv.id, { content: payload.initialMessage });
+  }
+
+  return newConv;
+}
+
+export async function fetchChatMessages(conversationId: string): Promise<ChatMessage[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/chat/conversations/${conversationId}/messages`);
+    if (res.ok) {
+      const json = await res.json();
+      return json.data || json;
+    }
+  } catch {
+    // Fallback
+  }
+
+  return localMessages[conversationId] || [];
+}
+
+export async function sendChatMessage(
+  conversationId: string,
+  payload: {
+    content: string;
+    type?: 'TEXT' | 'IMAGE' | 'FILE';
+    attachments?: Array<{ url: string; fileName?: string; fileType?: string; size?: number }>;
+  },
+): Promise<ChatMessage> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/chat/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      return json.message || json;
+    }
+  } catch {
+    // Fallback
+  }
+
+  const newMsg: ChatMessage = {
+    id: `msg_${Date.now()}`,
+    conversationId,
+    senderId: 'user-customer-1',
+    content: payload.content,
+    type: payload.type || (payload.attachments && payload.attachments.length > 0 ? 'FILE' : 'TEXT'),
+    status: 'SENT',
+    attachments: payload.attachments || null,
+    isRead: false,
+    createdAt: new Date().toISOString(),
+    sender: {
+      id: 'user-customer-1',
+      firstName: 'Shahariar',
+      lastName: 'Shawon',
+    },
+  };
+
+  if (!localMessages[conversationId]) {
+    localMessages[conversationId] = [];
+  }
+  localMessages[conversationId].push(newMsg);
+
+  // Update latest message in conversation
+  const conv = localConversations.find((c) => c.id === conversationId);
+  if (conv) {
+    conv.latestMessage = newMsg;
+    conv.lastMessageAt = new Date().toISOString();
+  }
+
+  return newMsg;
+}
+
+export async function markConversationAsRead(conversationId: string) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/chat/conversations/${conversationId}/read`, {
+      method: 'PATCH',
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback
+  }
+
+  const conv = localConversations.find((c) => c.id === conversationId);
+  if (conv) conv.unreadCount = 0;
+  if (localMessages[conversationId]) {
+    localMessages[conversationId].forEach((m) => {
+      m.isRead = true;
+      m.status = 'READ';
+      m.readAt = new Date().toISOString();
+    });
+  }
+
+  return { success: true };
+}
+
+export async function fetchUserNotifications(): Promise<{
+  notifications: NotificationItem[];
+  unreadCount: number;
+}> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/notifications`);
+    if (res.ok) {
+      const json = await res.json();
+      return {
+        notifications: json.data || json,
+        unreadCount: json.meta?.unreadCount ?? 0,
+      };
+    }
+  } catch {
+    // Fallback
+  }
+
+  const unreadCount = localNotifications.filter((n) => !n.isRead).length;
+  return {
+    notifications: localNotifications,
+    unreadCount,
+  };
+}
+
+export async function markNotificationAsRead(id: string) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/notifications/${id}/read`, {
+      method: 'PATCH',
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback
+  }
+
+  const notif = localNotifications.find((n) => n.id === id);
+  if (notif) {
+    notif.isRead = true;
+    notif.readAt = new Date().toISOString();
+  }
+  return { success: true };
+}
+
+export async function markAllNotificationsAsRead() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/notifications/read-all`, {
+      method: 'PATCH',
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback
+  }
+
+  localNotifications.forEach((n) => {
+    n.isRead = true;
+    n.readAt = new Date().toISOString();
+  });
+  return { success: true };
+}
+
+export async function uploadChatAttachment(file: File): Promise<{
+  url: string;
+  filename: string;
+  size: number;
+  mimetype: string;
+}> {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${API_BASE_URL}/upload/file`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback
+  }
+
+  // Fallback to data URL
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      resolve({
+        url: reader.result as string,
+        filename: file.name,
+        size: file.size,
+        mimetype: file.type || 'application/octet-stream',
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+}
