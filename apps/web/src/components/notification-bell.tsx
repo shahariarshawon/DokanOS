@@ -41,9 +41,21 @@ export function NotificationBellDropdown() {
   };
 
   useEffect(() => {
-    loadNotifications();
+    let mounted = true;
+    fetchUserNotifications()
+      .then((res) => {
+        if (mounted) {
+          setNotifications(res.notifications);
+          setUnreadCount(res.unreadCount);
+        }
+      })
+      .catch(() => {});
+
     const interval = setInterval(loadNotifications, 15000);
-    return () => clearInterval(interval);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   // Close dropdown on outside click

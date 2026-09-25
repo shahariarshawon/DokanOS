@@ -83,6 +83,11 @@ export class AuthService {
   ): Promise<AuthResponse> {
     const user = await this.usersService.findByEmail(loginDto.email);
     if (!user) {
+      // Perform constant-time dummy comparison to mitigate email enumeration timing side-channels
+      await bcrypt.compare(
+        loginDto.password,
+        '$2b$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012',
+      );
       if (this.auditService) {
         await this.auditService.log({
           action: 'LOGIN_FAILED',
@@ -223,7 +228,7 @@ export class AuthService {
     return {
       message:
         'If that email address is in our database, we will send a password reset link to it shortly.',
-      resetToken, // Provided for direct API confirmation & testing
+      ...(process.env.NODE_ENV !== 'production' ? { resetToken } : {}),
     };
   }
 

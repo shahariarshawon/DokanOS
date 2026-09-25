@@ -82,11 +82,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
       );
     }
 
+    const formattedErrorCode = errorCode.toUpperCase().replace(/\s+/g, '_');
+
     response.status(status).json({
       success: false,
+      message,
+      errorCode: formattedErrorCode,
       statusCode: status,
       error: {
-        code: errorCode.toUpperCase().replace(/\s+/g, '_'),
+        code: formattedErrorCode,
         message,
         details,
       },

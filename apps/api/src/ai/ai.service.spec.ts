@@ -381,16 +381,14 @@ describe('AiService (Backend Testing)', () => {
           ]),
       };
       prisma.analyticsEvent.count = vi.fn().mockResolvedValue(200);
-      prisma.product.findMany = vi
-        .fn()
-        .mockResolvedValue([
-          {
-            id: 'p-2',
-            title: 'Wireless Headphones',
-            stockQuantity: 40,
-            price: new Prisma.Decimal(150),
-          },
-        ]);
+      prisma.product.findMany = vi.fn().mockResolvedValue([
+        {
+          id: 'p-2',
+          title: 'Wireless Headphones',
+          stockQuantity: 40,
+          price: new Prisma.Decimal(150),
+        },
+      ]);
 
       const res = await aiService.sellerSalesAssistant(
         { question: 'Why are my sales dropping this month?' },
@@ -478,16 +476,14 @@ describe('AiService (Backend Testing)', () => {
 
   describe('AI Automation Workflow', () => {
     it('should run background automation pipeline for product scans and seller reports', async () => {
-      prisma.product.findMany = vi
-        .fn()
-        .mockResolvedValue([
-          {
-            id: 'p-1',
-            title: 'Low Stock Item',
-            stockQuantity: 2,
-            storeId: 'store-1',
-          },
-        ]);
+      prisma.product.findMany = vi.fn().mockResolvedValue([
+        {
+          id: 'p-1',
+          title: 'Low Stock Item',
+          stockQuantity: 2,
+          storeId: 'store-1',
+        },
+      ]);
       prisma.store = {
         findMany: vi
           .fn()

@@ -42,6 +42,23 @@ export class UploadService {
       );
     }
 
+    // Inspect SVG payloads to prevent Stored XSS attacks
+    if (file.mimetype === 'image/svg+xml') {
+      const content = file.buffer.toString('utf-8');
+      if (
+        /<script/i.test(content) ||
+        /javascript:/i.test(content) ||
+        /onload=/i.test(content) ||
+        /onerror=/i.test(content) ||
+        /onclick=/i.test(content) ||
+        /<foreignObject/i.test(content)
+      ) {
+        throw new BadRequestException(
+          'SVG contains disallowed script or active executable elements',
+        );
+      }
+    }
+
     const cleanFilename = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
 
     // Convert to data URL or CDN URL for seamless demonstration

@@ -374,6 +374,14 @@ export class PaymentsService {
     const webhookSecret = this.configService.get<string>(
       'STRIPE_WEBHOOK_SECRET',
     );
+    const isProduction =
+      this.configService.get<string>('NODE_ENV') === 'production';
+
+    if (isProduction && (!webhookSecret || !signature)) {
+      throw new BadRequestException(
+        'Webhook signature and secret are mandatory in production',
+      );
+    }
 
     if (this.stripe && webhookSecret && signature) {
       try {
@@ -467,6 +475,11 @@ export class PaymentsService {
     const rawTranId = ipnPayload.tran_id ?? ipnPayload.transactionId ?? '';
     const tranId =
       typeof rawTranId === 'string' ? rawTranId : JSON.stringify(rawTranId);
+
+    if (!tranId || tranId.trim() === '') {
+      throw new BadRequestException('Missing transaction identifier (tran_id)');
+    }
+
     const rawStatus = ipnPayload.status ?? '';
     const status = (
       typeof rawStatus === 'string' ? rawStatus : JSON.stringify(rawStatus)

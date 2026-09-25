@@ -92,6 +92,10 @@ async function bootstrap() {
       'Authorization',
       'X-Request-ID',
       'X-Idempotency-Key',
+      'x-tenant-id',
+      'X-Tenant-ID',
+      'x-store-id',
+      'X-Store-ID',
     ],
   });
 
