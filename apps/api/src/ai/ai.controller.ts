@@ -1,9 +1,12 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -11,6 +14,7 @@ import { AiService } from './ai.service.js';
 import { ShoppingChatDto } from './dto/shopping-chat.dto.js';
 import { SellerGenerateDto } from './dto/seller-generate.dto.js';
 import { SyncEmbeddingsDto } from './dto/sync-embeddings.dto.js';
+import { RecommendationQueryDto } from './dto/recommendation-query.dto.js';
 import { Public } from '../common/decorators/public.decorator.js';
 import { Roles } from '../common/decorators/roles.decorator.js';
 import { RolesGuard } from '../common/guards/roles.guard.js';
@@ -24,7 +28,7 @@ export class AiController {
   @ApiOperation({
     summary: 'AI Shopping Assistant Chat (RAG + pgvector)',
     description:
-      'Natural language conversational search. Embeds user query, queries pgvector database using cosine distance, and synthesizes contextual product recommendations.',
+      'Natural language conversational search. Embeds user query, queries pgvector database using cosine distance, and synthesizes contextual product recommendations with transparent explanations.',
   })
   @ApiResponse({ status: 200, description: 'AI conversational response with recommended products' })
   @Post('chat')
@@ -37,15 +41,30 @@ export class AiController {
   @UseGuards(RolesGuard)
   @Roles('SELLER', 'ADMIN')
   @ApiOperation({
-    summary: 'AI Seller Assistant (Description & SEO Copilot)',
+    summary: 'AI Seller Assistant (Description, Marketing Text & SEO Copilot)',
     description:
-      'Generates high-converting markdown product descriptions, SEO keywords, meta tags, and category tags based on product specifications.',
+      'Generates high-converting markdown product descriptions, SEO keywords, punchy marketing promotional copy, meta tags, and category tags.',
   })
   @ApiResponse({ status: 200, description: 'Generated description and SEO metadata' })
   @Post('product-description')
   @HttpCode(HttpStatus.OK)
   async generateSellerCopy(@Body() dto: SellerGenerateDto) {
     return this.aiService.generateSellerCopy(dto);
+  }
+
+  @Public()
+  @ApiOperation({
+    summary: 'Get Content-Based Product Recommendations',
+    description:
+      'Calculates content-based product recommendations using pgvector embedding cosine distance, category matching, price band proximity, and hardware attribute overlap.',
+  })
+  @ApiResponse({ status: 200, description: 'List of scored product recommendations' })
+  @Get('recommendations/:productId')
+  async getRecommendations(
+    @Param('productId') productId: string,
+    @Query() query: RecommendationQueryDto,
+  ) {
+    return this.aiService.getProductRecommendations(productId, query);
   }
 
   @ApiBearerAuth()

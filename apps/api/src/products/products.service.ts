@@ -317,4 +317,9 @@ export class ProductsService {
 
     return { message: `Product '${product.title}' has been archived successfully` };
   }
+
+  async getRecommendations(idOrSlug: string, limit: number = 6) {
+    const product = await this.findOne(idOrSlug);
+    return this.aiService.getProductRecommendations(product.id, { limit });
+  }
 }

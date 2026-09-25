@@ -64,6 +64,11 @@ app.add_middleware(
 @app.get("/", tags=["Health"])
 @app.get("/health", tags=["Health"])
 async def health_check():
+    from modules.cache.cache_manager import (
+        embedding_cache,
+        recommendation_cache,
+        llm_completion_cache,
+    )
     return {
         "status": "healthy",
         "service": settings.APP_NAME,
@@ -71,6 +76,17 @@ async def health_check():
         "environment": settings.ENVIRONMENT,
         "database": "connected",
         "vector_dimensions": 1536,
+        "modules": {
+            "embedding": "active",
+            "rag": "active",
+            "recommendation": "active",
+            "cache": "active",
+        },
+        "cache_metrics": {
+            "embeddings": embedding_cache.stats(),
+            "recommendations": recommendation_cache.stats(),
+            "llm_completions": llm_completion_cache.stats(),
+        },
     }
 
 # Include API Routes

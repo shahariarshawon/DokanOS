@@ -51,6 +51,16 @@ export class ProductsController {
     return this.productsService.findOne(idOrSlug);
   }
 
+  @Public()
+  @ApiOperation({ summary: 'Get AI content-based recommendations for a product' })
+  @Get(':idOrSlug/recommendations')
+  async getRecommendations(
+    @Param('idOrSlug') idOrSlug: string,
+    @Query('limit') limit?: number,
+  ) {
+    return this.productsService.getRecommendations(idOrSlug, limit ? Number(limit) : 6);
+  }
+
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update product listing (ownership guarded)' })
   @Roles(UserRole.SELLER, UserRole.ADMIN)

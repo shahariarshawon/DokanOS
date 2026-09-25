@@ -4,6 +4,7 @@ import { PrismaService } from '../database/prisma.service.js';
 import { ShoppingChatDto } from './dto/shopping-chat.dto.js';
 import { SellerGenerateDto } from './dto/seller-generate.dto.js';
 import { SyncEmbeddingsDto } from './dto/sync-embeddings.dto.js';
+import { RecommendationQueryDto } from './dto/recommendation-query.dto.js';
 
 export interface RecommendedProduct {
   id: string;
@@ -12,20 +13,34 @@ export interface RecommendedProduct {
   price: string;
   rating: string;
   storeName: string;
+  categoryName?: string;
   imageUrl?: string;
   similarityScore: number;
+  compositeScore?: number;
+  recommendationReason?: string;
+  matchReasons?: string[];
 }
 
 export interface ShoppingAssistantResult {
   conversationId?: string;
   reply: string;
   recommendedProducts: RecommendedProduct[];
+  intent?: {
+    query: string;
+    detectedCategory?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    extractedFeatures?: string[];
+    semanticIntent?: string;
+  };
+  cached?: boolean;
   executionTimeMs: number;
 }
 
 export interface SellerAssistantResult {
   description: string;
   descriptionMarkdown: string;
+  marketingText: string;
   seoKeywords: string[];
   tags: string[];
   seoMeta: {
@@ -34,6 +49,16 @@ export interface SellerAssistantResult {
     keywords: string[];
   };
   keySellingPoints: string[];
+  cached?: boolean;
+}
+
+export interface ProductRecommendationResult {
+  sourceProductId: string;
+  sourceProductTitle: string;
+  recommendations: RecommendedProduct[];
+  strategy: string;
+  cached?: boolean;
+  executionTimeMs: number;
 }
 
 @Injectable()
@@ -71,7 +96,7 @@ export class AiService {
           ...(this.internalKey ? { 'X-Internal-Key': this.internalKey } : {}),
         },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(10000),
       });
 
       if (!response.ok) {
@@ -89,9 +114,20 @@ export class AiService {
           price: String(p.price),
           rating: String(p.rating),
           storeName: p.store_name,
+          categoryName: p.category_name,
           imageUrl: p.image_url,
           similarityScore: p.similarity_score,
+          recommendationReason: p.recommendation_reason,
         })),
+        intent: data.intent ? {
+          query: data.intent.query,
+          detectedCategory: data.intent.detected_category,
+          minPrice: data.intent.min_price,
+          maxPrice: data.intent.max_price,
+          extractedFeatures: data.intent.extracted_features,
+          semanticIntent: data.intent.semantic_intent,
+        } : undefined,
+        cached: data.cached,
         executionTimeMs: data.execution_time_ms,
       };
     } catch (err: unknown) {
@@ -101,7 +137,7 @@ export class AiService {
   }
 
   /**
-   * AI Seller Assistant (Copywriter & SEO Generator)
+   * AI Seller Assistant (Description, Marketing Text & SEO Copilot)
    */
   async generateSellerCopy(dto: SellerGenerateDto): Promise<SellerAssistantResult> {
     const name = dto.productName || dto.title || 'Product';
@@ -122,7 +158,7 @@ export class AiService {
           ...(this.internalKey ? { 'X-Internal-Key': this.internalKey } : {}),
         },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(12000),
       });
 
       if (!response.ok) {
@@ -133,6 +169,7 @@ export class AiService {
       return {
         description: data.description,
         descriptionMarkdown: data.description,
+        marketingText: data.marketing_text || `Elevate your lifestyle with ${name}. Premium quality crafted for perfection.`,
         seoKeywords: data.seo_keywords,
         tags: data.tags,
         seoMeta: {
@@ -141,10 +178,70 @@ export class AiService {
           keywords: data.seo_meta?.keywords || data.seo_keywords || [],
         },
         keySellingPoints: data.key_selling_points || features,
+        cached: data.cached,
       };
     } catch (err: unknown) {
       this.logger.warn(`AI Service unavailable for seller copy: ${(err as Error).message}. Using fallback generator.`);
       return this.fallbackSellerCopy(name, dto.category, features);
+    }
+  }
+
+  /**
+   * Content-Based Product Recommendations
+   */
+  async getProductRecommendations(
+    productId: string,
+    query?: RecommendationQueryDto,
+  ): Promise<ProductRecommendationResult> {
+    const limit = query?.limit ?? 6;
+    const priceTolerance = query?.priceTolerance ?? 0.35;
+    const sameCategory = query?.sameCategory ?? false;
+
+    const url = new URL(`${this.aiBaseUrl}/v1/recommendations/products/${productId}`);
+    url.searchParams.set('limit', String(limit));
+    url.searchParams.set('price_tolerance', String(priceTolerance));
+    url.searchParams.set('same_category', String(sameCategory));
+
+    try {
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.internalKey ? { 'X-Internal-Key': this.internalKey } : {}),
+        },
+        signal: AbortSignal.timeout(8000),
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI service responded with status ${response.status}`);
+      }
+
+      const data = await response.json();
+      return {
+        sourceProductId: data.source_product_id,
+        sourceProductTitle: data.source_product_title,
+        strategy: data.strategy,
+        cached: data.cached,
+        executionTimeMs: data.execution_time_ms,
+        recommendations: (data.recommendations || []).map((r: any) => ({
+          id: r.id,
+          title: r.title,
+          slug: r.slug,
+          price: String(r.price),
+          rating: String(r.rating),
+          storeName: r.store_name,
+          categoryName: r.category_name,
+          imageUrl: r.image_url,
+          similarityScore: r.similarity_score,
+          compositeScore: r.composite_score,
+          matchReasons: r.match_reasons || [],
+        })),
+      };
+    } catch (err: unknown) {
+      this.logger.warn(
+        `AI Service recommendation offline for product '${productId}': ${(err as Error).message}. Using relational fallback.`,
+      );
+      return this.fallbackProductRecommendations(productId, limit);
     }
   }
 
@@ -210,6 +307,7 @@ export class AiService {
       },
       include: {
         store: true,
+        category: true,
         images: { where: { isPrimary: true }, take: 1 },
       },
       take: dto.limit || 5,
@@ -223,8 +321,10 @@ export class AiService {
       price: p.price.toString(),
       rating: p.rating.toString(),
       storeName: p.store.name,
+      categoryName: p.category.name,
       imageUrl: p.images[0]?.url,
       similarityScore: 0.75,
+      recommendationReason: `Top rated in ${p.category.name}`,
     }));
 
     return {
@@ -254,14 +354,79 @@ export class AiService {
     return {
       description: desc,
       descriptionMarkdown: desc,
+      marketingText: `Discover ${name} in ${category}. Premium build quality and reliable performance delivered to your door.`,
       seoKeywords,
       tags,
       seoMeta: {
-        metaTitle: `${name} | DokanOS`,
-        metaDescription: `Discover ${name} in ${category}. Premium features and guaranteed authenticity.`,
+        metaTitle: `${name} | DokanOS`.slice(0, 60),
+        metaDescription: `Discover ${name} in ${category}. Premium features and guaranteed authenticity.`.slice(0, 155),
         keywords: seoKeywords,
       },
       keySellingPoints: features.length > 0 ? features : ['Durable construction', 'Verified seller'],
+    };
+  }
+
+  private async fallbackProductRecommendations(
+    productId: string,
+    limit: number,
+  ): Promise<ProductRecommendationResult> {
+    const source = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: { id: true, title: true, categoryId: true, price: true },
+    });
+
+    if (!source) {
+      return {
+        sourceProductId: productId,
+        sourceProductTitle: 'Unknown Product',
+        recommendations: [],
+        strategy: 'relational_fallback_empty',
+        executionTimeMs: 5,
+      };
+    }
+
+    const priceNum = Number(source.price);
+    const related = await this.prisma.product.findMany({
+      where: {
+        id: { not: productId },
+        status: 'ACTIVE',
+        stockQuantity: { gt: 0 },
+        OR: [
+          { categoryId: source.categoryId },
+          { price: { gte: priceNum * 0.7, lte: priceNum * 1.3 } },
+        ],
+      },
+      include: {
+        store: true,
+        category: true,
+        images: { where: { isPrimary: true }, take: 1 },
+      },
+      take: limit,
+      orderBy: [{ rating: 'desc' }, { createdAt: 'desc' }],
+    });
+
+    const recommendations = related.map((p) => ({
+      id: p.id,
+      title: p.title,
+      slug: p.slug,
+      price: p.price.toString(),
+      rating: p.rating.toString(),
+      storeName: p.store.name,
+      categoryName: p.category.name,
+      imageUrl: p.images[0]?.url,
+      similarityScore: 0.7,
+      compositeScore: 0.75,
+      matchReasons: [
+        p.categoryId === source.categoryId ? `Same category: ${p.category.name}` : 'Similar price tier',
+      ],
+    }));
+
+    return {
+      sourceProductId: source.id,
+      sourceProductTitle: source.title,
+      recommendations,
+      strategy: 'relational_category_price_fallback',
+      executionTimeMs: 12,
     };
   }
 }
