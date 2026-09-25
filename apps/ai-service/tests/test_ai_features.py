@@ -1,7 +1,7 @@
 import os
 import sys
 import unittest
-import numpy as np
+import math
 
 # Ensure ai-service root is in sys.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -25,8 +25,8 @@ class TestAiFeatures(unittest.IsolatedAsyncioTestCase):
         text = "Mechanical keyboard with hot-swappable switches and RGB"
         vec, provider = await embedding_service.get_embedding(text)
         self.assertEqual(len(vec), EMBEDDING_DIM)
-        # Verify L2 norm is approximately 1.0
-        norm = np.linalg.norm(np.array(vec))
+        # Verify L2 norm is approximately 1.0 using standard math
+        norm = math.sqrt(sum(x * x for x in vec))
         self.assertAlmostEqual(norm, 1.0, places=2)
 
     def test_intent_parser_laptop_budget(self):
@@ -62,5 +62,30 @@ class TestAiFeatures(unittest.IsolatedAsyncioTestCase):
         self.assertGreater(len(res.tags), 2)
         self.assertTrue(res.seo_meta.meta_title.startswith("ProBook Ultralight 14"))
 
+    async def test_vision_analyzer_fallback(self):
+        from modules.rag.vision_analyzer import vision_analyzer_service
+        from modules.rag.contracts import ImageAnalysisRequest
+
+        req = ImageAnalysisRequest(image_url="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800")
+        res = await vision_analyzer_service.analyze(req)
+        self.assertIsNotNone(res.category)
+        self.assertIsNotNone(res.color)
+        self.assertGreater(len(res.tags), 0)
+
+    async def test_review_analyzer(self):
+        from modules.rag.review_analyzer import review_analyzer_service
+        from modules.rag.contracts import ReviewAnalysisRequest, ReviewItem
+
+        reviews = [
+            ReviewItem(rating=5, comment="Incredible sound clarity and battery life!"),
+            ReviewItem(rating=4, comment="Comfortable ear cushions, but the app was slightly confusing to setup."),
+            ReviewItem(rating=5, comment="Fast shipping and genuine product quality."),
+        ]
+        res = await review_analyzer_service.analyze_reviews(ReviewAnalysisRequest(reviews=reviews))
+        self.assertIn(res.sentiment, ["POSITIVE", "MIXED", "NEGATIVE"])
+        self.assertGreater(len(res.positive_points), 0)
+        self.assertEqual(res.total_analyzed, 3)
+
 if __name__ == "__main__":
     unittest.main()
+

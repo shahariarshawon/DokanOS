@@ -15,6 +15,30 @@ describe('AiService (Backend Testing)', () => {
         findMany: vi.fn(),
         findUnique: vi.fn(),
       },
+      aIConversation: {
+        create: vi.fn().mockResolvedValue({ id: 'conv-1' }),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      aIUsage: {
+        create: vi.fn().mockResolvedValue({ id: 'usage-1' }),
+        count: vi.fn().mockResolvedValue(10),
+        findMany: vi.fn().mockResolvedValue([]),
+        groupBy: vi.fn().mockResolvedValue([]),
+      },
+      reviewAnalysis: {
+        findMany: vi.fn().mockResolvedValue([]),
+        upsert: vi.fn().mockResolvedValue({ id: 'rev-an-1' }),
+        findUnique: vi.fn().mockResolvedValue(null),
+      },
+      review: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      storeReview: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      sellerProfile: {
+        findUnique: vi.fn().mockResolvedValue(null),
+      },
     };
 
     configService = {
@@ -100,6 +124,64 @@ describe('AiService (Backend Testing)', () => {
       expect(res.recommendedProducts).toHaveLength(1);
       expect(res.recommendedProducts[0].title).toBe('MacBook Air M2');
       expect(res.reply).toContain('recommendations from DokanOS');
+    });
+  });
+
+  describe('Vision Image Analyzer & Review Analysis Flows', () => {
+    it('should analyze product images using Vision AI and extract metadata', async () => {
+      const mockVisionRes = {
+        ok: true,
+        json: async () => ({
+          category: 'Footwear & Apparel',
+          color: 'Black / Red',
+          style: 'Athletic Running',
+          material: 'Mesh & Carbon Fiber',
+          tags: ['running', 'sports', 'sneakers'],
+          suggested_title: 'Nike Air Zoom Carbon Runner',
+          confidence: 0.96,
+        }),
+      };
+
+      vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+        Promise.resolve(mockVisionRes as any),
+      );
+
+      const res = await aiService.analyzeProductImage({
+        imageUrl: 'https://images.example.com/shoe.jpg',
+      });
+
+      expect(res.category).toBe('Footwear & Apparel');
+      expect(res.color).toBe('Black / Red');
+      expect(res.suggestedTitle).toContain('Runner');
+    });
+
+    it('should analyze customer reviews and generate sentiment summary', async () => {
+      const mockReviewRes = {
+        ok: true,
+        json: async () => ({
+          sentiment: 'POSITIVE',
+          positive_points: ['Exceptional sound quality', 'Fast pairing'],
+          negative_points: ['Mild ear-cup pressure after 4 hours'],
+          common_complaints: ['Case zipper can snag'],
+          summary: 'Analyzed 12 reviews with overwhelming 4.8 star positivity.',
+          total_analyzed: 12,
+        }),
+      };
+
+      vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+        Promise.resolve(mockReviewRes as any),
+      );
+
+      const res = await aiService.analyzeReviews({
+        productId: 'prod-headphones-1',
+        reviews: [
+          { rating: 5, comment: 'Phenomenal audio fidelity and battery life!' },
+        ],
+      });
+
+      expect(res.sentiment).toBe('POSITIVE');
+      expect(res.positivePoints).toContain('Exceptional sound quality');
+      expect(res.totalAnalyzed).toBe(12);
     });
   });
 

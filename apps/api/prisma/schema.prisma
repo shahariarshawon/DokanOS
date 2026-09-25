@@ -129,6 +129,8 @@ model User {
   reviews          Review[]
   followedStores   StoreFollower[]
   storeReviews     StoreReview[]
+  aiConversations  AIConversation[]
+  aiUsages         AIUsage[]
 
   @@index([role, status])
   @@index([createdAt])
@@ -188,6 +190,7 @@ model Store {
   sections        StoreSection[]
   followers       StoreFollower[]
   storeReviews    StoreReview[]
+  reviewAnalysis  ReviewAnalysis?
 
   @@index([sellerProfileId])
   @@index([status, rating])
@@ -246,6 +249,7 @@ model Product {
   orderItems        OrderItem[]
   reviews           Review[]
   embedding         ProductEmbedding?
+  reviewAnalysis    ReviewAnalysis?
   analyticsEvents   AnalyticsEvent[]
 
   @@unique([storeId, sku])
@@ -694,5 +698,58 @@ model StoreReview {
   @@index([userId])
   @@map("store_reviews")
 }
+
+// -------------------------------------------------------------
+// AI CONVERSATION MEMORY, REVIEW ANALYSIS & COST METRICS
+// -------------------------------------------------------------
+
+model AIConversation {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId              String?  @db.Uuid
+  query               String   @db.Text
+  response            String   @db.Text
+  recommendedProducts Json?    @db.JsonB
+  createdAt           DateTime @default(now()) @db.Timestamptz
+
+  user                User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@map("ai_conversations")
+}
+
+model ReviewAnalysis {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId        String?  @unique @db.Uuid
+  storeId          String?  @unique @db.Uuid
+  sentiment        String   @db.VarChar(50)
+  positivePoints   Json     @default("[]") @db.JsonB
+  negativePoints   Json     @default("[]") @db.JsonB
+  commonComplaints Json     @default("[]") @db.JsonB
+  summary          String   @db.Text
+  reviewCount      Int      @default(0)
+  createdAt        DateTime @default(now()) @db.Timestamptz
+  updatedAt        DateTime @updatedAt @db.Timestamptz
+
+  product          Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  store            Store?   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("review_analyses")
+}
+
+model AIUsage {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String?  @db.Uuid
+  feature     String   @db.VarChar(100)
+  tokensUsed  Int      @default(0)
+  cost        Decimal  @default(0.0000) @db.Decimal(10, 4)
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([feature, createdAt])
+  @@map("ai_usages")
+}
+
 
 

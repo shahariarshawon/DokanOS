@@ -5,12 +5,22 @@ from modules.rag.contracts import (
     SellerAssistantRequest,
     SellerAssistantResponse,
     ParsedIntent,
+    ImageAnalysisRequest,
+    ImageAnalysisResponse,
+    ReviewAnalysisRequest,
+    ReviewAnalysisResponse,
+    HybridSearchRequest,
+    HybridSearchResponse,
 )
 from modules.rag.shopping_assistant import shopping_assistant_service
 from modules.rag.seller_assistant import seller_assistant_service
 from modules.rag.intent_parser import query_intent_parser
+from modules.rag.vision_analyzer import vision_analyzer_service
+from modules.rag.review_analyzer import review_analyzer_service
+from modules.embedding.embedding_service import embedding_service
+from modules.rag.vector_search import vector_search_service
 
-router = APIRouter(tags=["AI Shopping & Seller Assistants"])
+router = APIRouter(tags=["AI Shopping, Vision & Intelligence Services"])
 
 @router.post(
     "/shopping/chat",
@@ -45,6 +55,71 @@ async def generate_seller_copy(request: SellerAssistantRequest):
         )
 
 @router.post(
+    "/vision/analyze",
+    response_model=ImageAnalysisResponse,
+    status_code=status.HTTP_200_OK,
+    summary="AI Product Image Analyzer",
+    description="Extracts product category, primary color, style, materials, and auto-generated titles from uploaded images.",
+)
+async def analyze_product_image(request: ImageAnalysisRequest):
+    try:
+        return await vision_analyzer_service.analyze(request)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Vision image analysis error: {str(e)}",
+        )
+
+@router.post(
+    "/reviews/analyze",
+    response_model=ReviewAnalysisResponse,
+    status_code=status.HTTP_200_OK,
+    summary="AI Customer Review Analyzer",
+    description="Analyzes customer feedback to generate overall sentiment, positive points, negative points, common complaints, and executive summaries.",
+)
+async def analyze_customer_reviews(request: ReviewAnalysisRequest):
+    try:
+        return await review_analyzer_service.analyze_reviews(request)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Review analysis error: {str(e)}",
+        )
+
+@router.post(
+    "/shopping/search",
+    response_model=HybridSearchResponse,
+    status_code=status.HTTP_200_OK,
+    summary="AI Hybrid & Semantic Product Search",
+    description="Combines query embedding similarity search with keyword relevance for high precision product discovery.",
+)
+async def hybrid_search_products(request: HybridSearchRequest):
+    import time
+    start = time.perf_counter()
+    try:
+        query_vector = await embedding_service.get_embedding(request.query)
+        results = await vector_search_service.search_similar_products(
+            query_vector=query_vector,
+            limit=request.limit,
+            min_price=request.min_price,
+            max_price=request.max_price,
+            category_id=request.category_id,
+            category_hint=request.query,
+        )
+        duration_ms = round((time.perf_counter() - start) * 1000, 2)
+        return HybridSearchResponse(
+            query=request.query,
+            products=results,
+            total_found=len(results),
+            execution_time_ms=duration_ms,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Hybrid search failed: {str(e)}",
+        )
+
+@router.post(
     "/rag/parse-intent",
     response_model=ParsedIntent,
     status_code=status.HTTP_200_OK,
@@ -59,3 +134,4 @@ async def parse_query_intent(query: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Intent parser error: {str(e)}",
         )
+

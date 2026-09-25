@@ -92,8 +92,8 @@ class QueryIntentParser:
     def _detect_category(self, text: str) -> Optional[str]:
         for cat, keywords in CATEGORY_KEYWORDS.items():
             for kw in keywords:
-                # Whole word match
-                if re.search(rf"\b{re.escape(kw)}\b", text):
+                # Whole word match with optional plural 's'
+                if re.search(rf"\b{re.escape(kw)}s?\b", text):
                     return cat
         return None
 

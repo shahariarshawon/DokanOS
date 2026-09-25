@@ -58,3 +58,45 @@ class SellerAssistantResponse(BaseModel):
     seo_meta: SeoMeta
     key_selling_points: List[str]
     cached: bool = False
+
+class ImageAnalysisRequest(BaseModel):
+    image_url: str = Field(..., description="Public image URL or base64 image data")
+
+class ImageAnalysisResponse(BaseModel):
+    category: str = Field(..., description="Detected product category")
+    color: str = Field(..., description="Primary color")
+    style: str = Field(..., description="Product style classification")
+    material: str = Field(..., description="Detected material")
+    tags: List[str] = Field(default_factory=list, description="Extracted tags")
+    suggested_title: str = Field(..., description="Auto-generated title")
+    confidence: float = Field(0.95, description="Vision model confidence score")
+
+class ReviewItem(BaseModel):
+    rating: int = Field(5, ge=1, le=5)
+    comment: str = Field(..., min_length=1)
+
+class ReviewAnalysisRequest(BaseModel):
+    reviews: List[ReviewItem] = Field(..., min_length=1)
+    product_title: Optional[str] = None
+
+class ReviewAnalysisResponse(BaseModel):
+    sentiment: str = Field(..., description="POSITIVE, NEGATIVE, MIXED, NEUTRAL")
+    positive_points: List[str] = Field(default_factory=list)
+    negative_points: List[str] = Field(default_factory=list)
+    common_complaints: List[str] = Field(default_factory=list)
+    summary: str = Field(...)
+    total_analyzed: int = Field(...)
+
+class HybridSearchRequest(BaseModel):
+    query: str = Field(..., min_length=1)
+    limit: int = Field(10, ge=1, le=50)
+    category_id: Optional[str] = None
+    min_price: Optional[float] = None
+    max_price: Optional[float] = None
+
+class HybridSearchResponse(BaseModel):
+    query: str
+    products: List[ProductRecommendation] = Field(default_factory=list)
+    total_found: int
+    execution_time_ms: float
+

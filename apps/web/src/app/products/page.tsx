@@ -16,10 +16,11 @@ import {
   ArrowUpDown,
   RefreshCw,
   ChevronDown,
+  Sparkles,
 } from 'lucide-react';
 import { Navbar } from '@/components/navbar';
 import { Footer } from '@/components/footer';
-import { fetchProducts } from '@/lib/api-client';
+import { fetchProducts, performHybridSearch } from '@/lib/api-client';
 import { Product, CATEGORIES } from '@/lib/mock-data';
 import { useCart } from '@/lib/cart-context';
 import { formatPrice } from '@/lib/utils';
@@ -42,6 +43,7 @@ function ProductsContent() {
   const [sortBy, setSortBy] = useState<
     'newest' | 'price_asc' | 'price_desc' | 'rating' | 'popular'
   >('newest');
+  const [useSemanticSearch, setUseSemanticSearch] = useState(false);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -51,6 +53,19 @@ function ProductsContent() {
   // Load products based on query state
   useEffect(() => {
     setIsLoading(true);
+
+    if (useSemanticSearch && searchQuery.trim()) {
+      performHybridSearch(searchQuery.trim()).then((res) => {
+        fetchProducts({ limit: 50 }).then((allRes) => {
+          const matchIds = new Set(res.products?.map((p: any) => p.id) || []);
+          const matched = allRes.data.filter((p) => matchIds.has(p.id));
+          setProducts(matched.length > 0 ? matched : allRes.data.slice(0, 4));
+          setIsLoading(false);
+        });
+      });
+      return;
+    }
+
     fetchProducts({
       search: searchQuery || undefined,
       categorySlug: selectedCategory !== 'all' ? selectedCategory : undefined,
@@ -63,7 +78,16 @@ function ProductsContent() {
       setProducts(res.data);
       setIsLoading(false);
     });
-  }, [searchQuery, selectedCategory, minPrice, maxPrice, minRating, inStockOnly, sortBy]);
+  }, [
+    searchQuery,
+    selectedCategory,
+    minPrice,
+    maxPrice,
+    minRating,
+    inStockOnly,
+    sortBy,
+    useSemanticSearch,
+  ]);
 
   const handleQuickAdd = (product: Product) => {
     addToCart(product, 1);
@@ -149,6 +173,23 @@ function ProductsContent() {
                 </button>
               )}
             </div>
+
+            {/* AI Semantic Search Toggle */}
+            <button
+              type="button"
+              id="ai-semantic-toggle"
+              data-testid="ai-semantic-toggle"
+              onClick={() => setUseSemanticSearch(!useSemanticSearch)}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all border ${
+                useSemanticSearch
+                  ? 'bg-indigo-600 border-indigo-600 text-white shadow-2xs'
+                  : 'bg-white border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 shadow-2xs'
+              }`}
+              title="Toggle AI Vector Semantic Search"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>AI Semantic</span>
+            </button>
 
             {/* Sort Selector */}
             <div className="relative">

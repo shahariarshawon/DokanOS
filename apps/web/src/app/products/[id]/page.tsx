@@ -17,10 +17,17 @@ import {
   Minus,
   MessageSquare,
   Package,
+  Sparkles,
+  ThumbsUp,
+  ThumbsDown,
 } from 'lucide-react';
 import { Navbar } from '@/components/navbar';
 import { Footer } from '@/components/footer';
-import { fetchProductByIdOrSlug, submitProductReview } from '@/lib/api-client';
+import {
+  fetchProductByIdOrSlug,
+  submitProductReview,
+  analyzeProductReviewsAi,
+} from '@/lib/api-client';
 import { Product, ProductVariant } from '@/lib/mock-data';
 import { useCart } from '@/lib/cart-context';
 import { formatPrice } from '@/lib/utils';
@@ -43,6 +50,7 @@ export default function ProductDetailPage() {
   const [reviewTitle, setReviewTitle] = useState('');
   const [reviewComment, setReviewComment] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewAnalysis, setReviewAnalysis] = useState<any>(null);
 
   useEffect(() => {
     if (params.id) {
@@ -55,6 +63,12 @@ export default function ProductDetailPage() {
             const defaultVar = prod.variants.find((v) => v.isDefault) || prod.variants[0];
             setSelectedVariant(defaultVar);
           }
+          // Fetch AI review sentiment analysis
+          analyzeProductReviewsAi(prod.id, prod.reviews).then((analysis) => {
+            if (analysis) {
+              setReviewAnalysis(analysis);
+            }
+          });
         }
         setIsLoading(false);
       });
@@ -428,6 +442,77 @@ export default function ProductDetailPage() {
               <span>Write a Review</span>
             </button>
           </div>
+
+          {/* AI Customer Review Sentiment Analysis (Phase 3 Part 7) */}
+          {reviewAnalysis && (
+            <div
+              id="ai-review-sentiment-card"
+              data-testid="ai-review-sentiment-card"
+              className="mb-8 rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50/60 via-purple-50/30 to-white p-5 shadow-2xs"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-indigo-100/60">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-xs">
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-zinc-900">
+                      AI Review Sentiment & Complaint Synthesis
+                    </h3>
+                    <p className="text-[11px] text-zinc-500">
+                      Aggregated across {reviewAnalysis.totalReviews} verified community ratings
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                    {Math.round(reviewAnalysis.sentimentScore * 100)}% Positive Sentiment
+                  </span>
+                  <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-[10px] font-bold text-indigo-700">
+                    Overall: {reviewAnalysis.overallSentiment}
+                  </span>
+                </div>
+              </div>
+
+              {/* Summary quote */}
+              <p className="mt-3 text-xs text-zinc-700 leading-relaxed italic bg-white/70 rounded-xl p-3 border border-indigo-50">
+                &ldquo;{reviewAnalysis.summary}&rdquo;
+              </p>
+
+              {/* Two Column Points: Positives vs Cons */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 text-xs">
+                <div className="rounded-xl bg-emerald-50/50 border border-emerald-100 p-3.5 space-y-2">
+                  <span className="flex items-center gap-1.5 font-bold text-emerald-800 text-[11px] uppercase tracking-wider">
+                    <ThumbsUp className="w-3.5 h-3.5 text-emerald-600" />
+                    Key Strengths Highlighted
+                  </span>
+                  <ul className="space-y-1 text-emerald-900 text-[11px]">
+                    {reviewAnalysis.positivePoints?.map((pt: string, idx: number) => (
+                      <li key={idx} className="flex items-start gap-1.5">
+                        <span className="text-emerald-500 font-bold">•</span>
+                        <span>{pt}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="rounded-xl bg-amber-50/50 border border-amber-100 p-3.5 space-y-2">
+                  <span className="flex items-center gap-1.5 font-bold text-amber-800 text-[11px] uppercase tracking-wider">
+                    <ThumbsDown className="w-3.5 h-3.5 text-amber-600" />
+                    Areas to Consider / Complaints
+                  </span>
+                  <ul className="space-y-1 text-amber-900 text-[11px]">
+                    {reviewAnalysis.negativePoints?.map((pt: string, idx: number) => (
+                      <li key={idx} className="flex items-start gap-1.5">
+                        <span className="text-amber-500 font-bold">•</span>
+                        <span>{pt}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Reviews List */}
           <div className="space-y-4">

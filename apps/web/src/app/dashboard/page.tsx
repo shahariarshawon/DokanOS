@@ -25,6 +25,11 @@ import {
   Calendar,
   ShieldCheck,
   ChevronDown,
+  Sparkles,
+  Wand2,
+  Image as ImageIcon,
+  Cpu,
+  Loader2,
 } from 'lucide-react';
 import { Navbar } from '@/components/navbar';
 import { Footer } from '@/components/footer';
@@ -35,6 +40,9 @@ import {
   duplicateProduct,
   deleteProduct,
   adjustInventoryStock,
+  fetchSellerAiInsights,
+  generateSellerCopilotCopy,
+  analyzeProductImageAi,
   InventoryOverview,
   InventoryTransactionItem,
 } from '@/lib/api-client';
@@ -197,6 +205,14 @@ export default function SellerDashboardPage() {
   const [newStock, setNewStock] = useState(25);
   const [newSku, setNewSku] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [productImageUrl, setProductImageUrl] = useState(
+    'https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=800&auto=format&fit=crop&q=80',
+  );
+  const [isGeneratingCopilot, setIsGeneratingCopilot] = useState(false);
+  const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
+  const [aiGeneratedTags, setAiGeneratedTags] = useState<string[]>([]);
+  const [aiMarketingCopy, setAiMarketingCopy] = useState<string>('');
+  const [aiInsights, setAiInsights] = useState<any[]>([]);
 
   // Orders State (for Fulfillment Tab)
   const [sellerOrders, setSellerOrders] = useState<any[]>([]);
@@ -204,14 +220,18 @@ export default function SellerDashboardPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [prodRes, invRes, txnRes] = await Promise.all([
+      const [prodRes, invRes, txnRes, insightsRes] = await Promise.all([
         fetchProducts({ limit: 50 }),
         fetchInventoryOverview(),
         fetchInventoryTransactions(),
+        fetchSellerAiInsights(),
       ]);
       setProducts(prodRes.data);
       setInventoryOverview(invRes);
       setTransactions(txnRes);
+      if (insightsRes?.insights) {
+        setAiInsights(insightsRes.insights);
+      }
 
       // Load local seller orders
       if (typeof window !== 'undefined') {
@@ -226,6 +246,68 @@ export default function SellerDashboardPage() {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGenerateCopilot = async () => {
+    if (!newTitle.trim()) {
+      showToast('Please enter a product title or seed keyword first (e.g. Wireless Headphones)');
+      return;
+    }
+    setIsGeneratingCopilot(true);
+    try {
+      const result = await generateSellerCopilotCopy({
+        productName: newTitle,
+        category: newCategory,
+        features: [
+          'Premium Ergonomic Finish',
+          'Bluetooth 5.4 Low Latency',
+          'Fast USB-C Quick Charge',
+        ],
+      });
+      if (result) {
+        setNewDescription(result.description);
+        setAiMarketingCopy(result.marketingText || '');
+        if (result.tags && result.tags.length > 0) {
+          setAiGeneratedTags(result.tags);
+        }
+        showToast('✨ AI Copilot generated title, SEO description, and keywords!');
+      }
+    } catch {
+      showToast('Failed to generate AI product copy');
+    } finally {
+      setIsGeneratingCopilot(false);
+    }
+  };
+
+  const handleAnalyzeImage = async () => {
+    if (!productImageUrl.trim()) {
+      showToast('Please provide an image URL to analyze');
+      return;
+    }
+    setIsAnalyzingImage(true);
+    try {
+      const analysis = await analyzeProductImageAi(productImageUrl);
+      if (analysis) {
+        if (analysis.category) {
+          setNewCategory(analysis.category);
+        }
+        if (!newTitle.trim() && analysis.suggestedTitle) {
+          setNewTitle(analysis.suggestedTitle);
+        }
+        if (analysis.tags) {
+          setAiGeneratedTags(analysis.tags);
+        }
+        const appendedSpecs = `\n\n**Visual Attributes Detected by AI Vision:**\n- Color: ${analysis.color || 'Dynamic'}\n- Style: ${analysis.style || 'Modern'}\n- Material: ${analysis.material || 'Engineered'}\n`;
+        setNewDescription((prev) => (prev ? prev + appendedSpecs : appendedSpecs.trim()));
+        showToast(
+          `📷 Vision AI detected: ${analysis.category} (${analysis.material}, ${analysis.color})`,
+        );
+      }
+    } catch {
+      showToast('Failed to analyze image with Vision AI');
+    } finally {
+      setIsAnalyzingImage(false);
     }
   };
 
@@ -529,6 +611,74 @@ export default function SellerDashboardPage() {
                 </button>
               </div>
             </div>
+
+            {/* AI Seller Insights & Growth Copilot (Phase 3) */}
+            {aiInsights.length > 0 && (
+              <div
+                id="ai-seller-insights"
+                data-testid="ai-seller-insights"
+                className="rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50/80 via-purple-50/40 to-white p-5 shadow-2xs"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-bold text-zinc-900">
+                          AI Seller Copilot & Growth Intelligence
+                        </h3>
+                        <span className="rounded-full bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 text-[10px]">
+                          Phase 3 Active
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-zinc-500">
+                        Autonomous catalog optimization, competitor price benchmarking & review
+                        sentiment
+                      </p>
+                    </div>
+                  </div>
+                  <span className="rounded-full bg-white/80 border border-indigo-200 px-2.5 py-1 text-[11px] font-bold text-indigo-700 shadow-2xs">
+                    {aiInsights.length} Recommendations Available
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 pt-1">
+                  {aiInsights.map((ins: any) => (
+                    <div
+                      key={ins.id}
+                      className="rounded-xl border border-white/90 bg-white/90 backdrop-blur-xs p-4 shadow-2xs hover:shadow-xs transition-shadow flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="rounded bg-indigo-50 text-indigo-700 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider">
+                            {ins.type}
+                          </span>
+                          <span className="text-[10px] font-bold text-emerald-600">
+                            {ins.impact}
+                          </span>
+                        </div>
+                        <h4 className="text-xs font-bold text-zinc-900 line-clamp-1">
+                          {ins.title}
+                        </h4>
+                        <p className="text-[11px] text-zinc-500 mt-1 line-clamp-2 leading-relaxed">
+                          {ins.description}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => showToast(`AI Action applied: "${ins.actionText}"`)}
+                        className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
+                      >
+                        <span>{ins.actionText}</span>
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Overview Metric Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -1584,6 +1734,121 @@ export default function SellerDashboardPage() {
             </div>
 
             <form onSubmit={handleCreateProduct} className="mt-4 space-y-4 text-xs">
+              {/* AI Copilot & Vision Analyzer Helper Banners */}
+              <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold text-indigo-900">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>AI Seller Copilot & Vision Assist</span>
+                  </div>
+                  <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[9px] font-bold text-indigo-700">
+                    Phase 3
+                  </span>
+                </div>
+
+                {/* AI Image Analyzer Bar */}
+                <div className="space-y-1.5 pt-1 border-t border-indigo-100/60">
+                  <label className="text-[11px] font-semibold text-zinc-700 block">
+                    Product Image (Vision AI Image Analyzer)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={productImageUrl}
+                      onChange={(e) => setProductImageUrl(e.target.value)}
+                      placeholder="Paste image URL (Unsplash or CDN)..."
+                      className="flex-1 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-zinc-900 outline-none focus:border-indigo-600"
+                    />
+                    <button
+                      type="button"
+                      disabled={isAnalyzingImage}
+                      onClick={handleAnalyzeImage}
+                      className="flex items-center gap-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white font-semibold px-3 py-1.5 shrink-0 transition-colors"
+                    >
+                      {isAnalyzingImage ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          <span>Analyzing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Cpu className="w-3 h-3" />
+                          <span>Analyze Vision</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Sample Presets */}
+                  <div className="flex items-center gap-1.5 pt-1 text-[10px] text-zinc-500">
+                    <span>Try sample:</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProductImageUrl(
+                          'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&auto=format&fit=crop&q=80',
+                        );
+                        setNewTitle('Nike Air Max Sport');
+                      }}
+                      className="underline hover:text-indigo-600"
+                    >
+                      👟 Sport Shoe
+                    </button>
+                    <span>•</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProductImageUrl(
+                          'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80',
+                        );
+                        setNewTitle('Sony Studio Headphones');
+                      }}
+                      className="underline hover:text-indigo-600"
+                    >
+                      🎧 Headphones
+                    </button>
+                    <span>•</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProductImageUrl(
+                          'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800&auto=format&fit=crop&q=80',
+                        );
+                        setNewTitle('MacBook Pro M3');
+                      }}
+                      className="underline hover:text-indigo-600"
+                    >
+                      💻 Laptop
+                    </button>
+                  </div>
+                </div>
+
+                {/* AI Copilot Action Button */}
+                <div className="flex items-center justify-between pt-1 border-t border-indigo-100/60">
+                  <span className="text-[11px] text-zinc-600">
+                    Generate SEO title, markdown specs & marketing copy:
+                  </span>
+                  <button
+                    type="button"
+                    disabled={isGeneratingCopilot}
+                    onClick={handleGenerateCopilot}
+                    className="flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold px-3 py-1.5 transition-colors shadow-2xs"
+                  >
+                    {isGeneratingCopilot ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>Generating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="w-3 h-3" />
+                        <span>Generate with Copilot</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="font-semibold text-zinc-700 block mb-1">Product Title *</label>
                 <input
@@ -1592,7 +1857,7 @@ export default function SellerDashboardPage() {
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   placeholder="e.g. Sony WH-1000XM6 Wireless Headphones"
-                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-zinc-900 outline-none focus:border-indigo-600"
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-zinc-900 outline-none focus:border-indigo-600 font-medium"
                 />
               </div>
 
@@ -1651,17 +1916,43 @@ export default function SellerDashboardPage() {
               </div>
 
               <div>
-                <label className="font-semibold text-zinc-700 block mb-1">
-                  Product Description
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-semibold text-zinc-700">
+                    Product Description (Markdown Enabled)
+                  </label>
+                  {aiMarketingCopy && (
+                    <span className="text-[10px] text-indigo-600 font-semibold">
+                      AI Marketing snippet active
+                    </span>
+                  )}
+                </div>
                 <textarea
-                  rows={3}
+                  rows={4}
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
                   placeholder="Key features, technical details, box contents..."
-                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-zinc-900 outline-none focus:border-indigo-600"
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-zinc-900 outline-none focus:border-indigo-600 font-mono text-[11px]"
                 />
               </div>
+
+              {/* AI Generated Tags Preview */}
+              {aiGeneratedTags.length > 0 && (
+                <div>
+                  <label className="font-semibold text-zinc-700 block mb-1">
+                    AI Detected SEO Tags & Keywords
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {aiGeneratedTags.map((tag, idx) => (
+                      <span
+                        key={idx}
+                        className="rounded-md bg-zinc-100 border border-zinc-200 px-2 py-0.5 text-[10px] font-medium text-zinc-700"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-100">
                 <button
@@ -1673,7 +1964,7 @@ export default function SellerDashboardPage() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-1.5"
+                  className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-1.5 shadow-2xs"
                 >
                   Create & List Product
                 </button>
