@@ -13,7 +13,7 @@ export class AppController {
     summary: 'Liveness probe health check (uptime, memory, service status)',
   })
   @Get('health')
-  getHealth() {
+  async getHealth() {
     return this.appService.getLiveHealth();
   }
 

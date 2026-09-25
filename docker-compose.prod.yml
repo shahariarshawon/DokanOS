@@ -1,26 +1,32 @@
 services:
   # -------------------------------------------------------------
-  # Reverse Proxy & Edge SSL Termination (Caddy)
+  # Reverse Proxy & Edge SSL Termination (Nginx)
   # -------------------------------------------------------------
-  caddy:
-    image: caddy:2-alpine
-    container_name: dokanos-caddy
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: dokanos-nginx
     restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
-      - "443:443/udp"
     volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+      - certbot_conf:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
     depends_on:
       web:
         condition: service_healthy
       api:
         condition: service_healthy
+      ai-service:
+        condition: service_healthy
     networks:
       - dokanos_net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
     logging:
       driver: "json-file"
       options:
@@ -28,7 +34,21 @@ services:
         max-file: "5"
 
   # -------------------------------------------------------------
-  # Frontend Storefront & Dashboard (Next.js 15 Standalone)
+  # Automated SSL Certificate Manager (Let's Encrypt Certbot)
+  # -------------------------------------------------------------
+  certbot:
+    image: certbot/certbot:latest
+    container_name: dokanos-certbot
+    restart: unless-stopped
+    volumes:
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - dokanos_net
+
+  # -------------------------------------------------------------
+  # Frontend Storefront & Builder (Next.js 16 Standalone)
   # -------------------------------------------------------------
   web:
     build:
@@ -42,6 +62,12 @@ services:
       NEXT_PUBLIC_API_URL: "https://${DOMAIN_NAME:-dokanos.com}/api/v1"
     networks:
       - dokanos_net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     deploy:
       resources:
         limits:
@@ -67,14 +93,24 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4000
+      DATABASE_URL: ${DATABASE_URL:-postgresql://dokanos:password@postgres:5432/dokanos?sslmode=disable}
+      REDIS_URL: ${REDIS_URL:-redis://:dokanos_redis_secure_pass_2026@redis:6379}
       AI_SERVICE_URL: "http://ai-service:8000"
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
       ai-service:
         condition: service_healthy
     networks:
       - dokanos_net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:4000/api/v1/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     deploy:
       resources:
         limits:
@@ -100,8 +136,51 @@ services:
     environment:
       PORT: 8000
       HOST: "0.0.0.0"
+      DATABASE_URL: ${DATABASE_URL:-postgresql://dokanos:password@postgres:5432/dokanos?sslmode=disable}
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - dokanos_net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2048M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # -------------------------------------------------------------
+  # Primary Database (PostgreSQL 16 + pgvector)
+  # -------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: dokanos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dokanos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-dokanos}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - dokanos_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dokanos} -d ${POSTGRES_DB:-dokanos}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         limits:
@@ -141,6 +220,7 @@ networks:
     driver: bridge
 
 volumes:
-  caddy_data:
-  caddy_config:
+  postgres_data:
   redis_data:
+  certbot_conf:
+  certbot_www:

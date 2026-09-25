@@ -15,13 +15,41 @@ export class AppService {
     return 'Hello World!';
   }
 
-  getLiveHealth() {
+  async getLiveHealth() {
+    let database = 'connected';
+    let redis = 'connected';
+
+    if (this.prisma) {
+      try {
+        await this.prisma.$queryRaw`SELECT 1`;
+      } catch {
+        database = 'disconnected';
+      }
+    }
+
+    if (this.redis) {
+      try {
+        const client = this.redis.getClient();
+        if (client) {
+          await client.ping();
+        } else {
+          redis = 'disconnected';
+        }
+      } catch {
+        redis = 'disconnected';
+      }
+    }
+
+    const isHealthy = database === 'connected' && redis === 'connected';
+
     return {
-      status: 'healthy',
+      status: isHealthy ? 'healthy' : 'degraded',
+      database,
+      redis,
       timestamp: new Date().toISOString(),
       service: 'dokanos-api',
       version: '1.0.0',
-      uptime: process.uptime(),
+      uptime: Math.floor(process.uptime()),
       memory: {
         heapUsedMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
         rssMb: Math.round(process.memoryUsage().rss / 1024 / 1024),

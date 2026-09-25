@@ -12,10 +12,11 @@ An enterprise-grade, polyglot commerce platform combining high-throughput market
 [![NestJS 12](https://img.shields.io/badge/API-NestJS%2012%20Modular%20Monolith-E0234E?style=flat&logo=nestjs)](https://nestjs.com/)
 [![FastAPI](https://img.shields.io/badge/AI-FastAPI%20Python%203.12-009688?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![pgvector](https://img.shields.io/badge/Vector%20DB-PostgreSQL%2016%20%2B%20pgvector-336791?style=flat&logo=postgresql)](https://github.com/pgvector/pgvector)
+[![Nginx](https://img.shields.io/badge/Proxy-Nginx%201.27%20Alpine-009639?style=flat&logo=nginx)](https://nginx.org/)
 [![Docker](https://img.shields.io/badge/Container-Docker%20Multi--Stage-2496ED?style=flat&logo=docker)](https://www.docker.com/)
-[![Testing](https://img.shields.io/badge/Testing-Jest%20%7C%20Playwright-C21325?style=flat&logo=jest)](https://jestjs.io/)
+[![Testing](<https://img.shields.io/badge/Testing-Vitest%20(91%20Tests%20Passed)-41B883?style=flat&logo=vitest>)](https://vitest.dev/)
 
-[Architecture](#system-architecture) • [Features](#key-capabilities) • [Quickstart](#local-development-quickstart) • [Docker Production](#production-container-deployment) • [API Docs](#api-documentation) • [Portfolio Showcase](#portfolio-highlights)
+[Architecture](#system-architecture) • [Database ERD](#database-entity-relationship-diagram) • [AI Workflow](#autonomous-ai-workflow) • [Demo Flows](#end-to-end-demo-flows) • [Production Deployment](#production-container-deployment) • [API Docs](#api-documentation) • [Monitoring](#monitoring--health-checks)
 
 </div>
 
@@ -27,6 +28,7 @@ An enterprise-grade, polyglot commerce platform combining high-throughput market
 
 - **Conversational RAG Shopping Assistant:** Real-time semantic product discovery with hybrid keyword search, price constraints, and guaranteed relational fallback during microservice degradation.
 - **Autonomous Seller Copilot:** Automated generation of SEO metadata, product copywriting, and categorized product attributes.
+- **Production-Hardened Security:** Stateless JWT access tokens, cryptographic refresh token rotation, global sliding-window rate limiting, Helmet HTTP security headers, and cross-tenant isolation.
 - **Atomic Multi-Vendor Checkout:** Inventory decrement and commission distribution executed inside transactional boundaries (`Prisma.$transaction`) with automated stock replenishment on cancellations.
 - **Real-Time Telemetry & BI Dashboard:** WebSocket event streaming (`Socket.IO` + Redis adapter) powering interactive analytics for both vendor earnings and platform-level GMV take-rate tracking.
 
@@ -34,7 +36,7 @@ An enterprise-grade, polyglot commerce platform combining high-throughput market
 
 ## System Architecture
 
-DokanOS operates as a **modular monolith core API** paired with an **isolated AI vector microservice** behind an edge reverse proxy:
+DokanOS operates as a **modular monolith core API** paired with an **isolated AI vector microservice** behind an edge **Nginx reverse proxy**:
 
 ```mermaid
 flowchart TB
@@ -45,235 +47,300 @@ flowchart TB
     end
 
     subgraph Edge["Edge & Reverse Proxy Tier (VPS Host)"]
-        CADDY["Caddy 2 / Nginx (Port 80/443)<br/>Automated Let's Encrypt TLS 1.3<br/>HTTP/3 QUIC + Compression"]
+        NGINX["Nginx 1.27 Reverse Proxy (Port 80/443)<br/>Automated Let's Encrypt TLS 1.3<br/>Gzip Compression + Security Headers"]
+        CERTBOT["Let's Encrypt Certbot<br/>Automated 12h SSL Renewal Loop"]
     end
 
     subgraph DockerNet["Isolated Internal Docker Bridge (dokanos_net)"]
         WEB["Next.js 16 Standalone Web Container<br/>(Port 3000)<br/>Non-Root 'nextjs' User"]
         API["NestJS 12 API Gateway Container<br/>(Port 4000)<br/>Non-Root 'node' User"]
         AI["FastAPI AI Intelligence Container<br/>(Port 8000)<br/>Non-Root 'appuser' User"]
-        REDIS["Redis 7 Alpine Cache Container<br/>(Port 6379)<br/>AOF Persistence + Password"]
-    end
-
-    subgraph ManagedCloud["Managed Cloud Data Tier"]
-        NEON[("NeonDB Cloud PostgreSQL 16<br/>Connection Pooling + SSL Enforcement<br/>pgvector Extension (1536-dim HNSW Index)")]
-        SUPABASE["Cloud Object Storage (S3 / R2)<br/>(Product Media & Catalog Assets)"]
+        REDIS["Redis 7 Alpine Cache & Rate Limiter<br/>(Port 6379)<br/>AOF Persistence + Password Auth"]
+        POSTGRES["PostgreSQL 16 Container / NeonDB<br/>(Port 5432)<br/>pgvector Extension (HNSW 1536-dim)"]
     end
 
     %% Ingress Traffic
-    CLIENT -->|"HTTPS (dokanos.com)"| CADDY
-    STRIPE_HOOK -->|"HTTPS (dokanos.com/api/v1/payments/webhook/stripe)"| CADDY
-    SSLC_HOOK -->|"HTTPS (dokanos.com/api/v1/payments/webhook/sslcommerz)"| CADDY
+    CLIENT -->|"HTTPS (:443)"| NGINX
+    STRIPE_HOOK -->|"HTTPS /api/v1/payments/webhook/stripe"| NGINX
+    SSLC_HOOK -->|"HTTPS /api/v1/payments/webhook/sslcommerz"| NGINX
+    CERTBOT -.->|"ACME Webroot Verification"| NGINX
 
-    %% Routing
-    CADDY -->|"Reverse Proxy /*"| WEB
-    CADDY -->|"Reverse Proxy /api/*"| API
+    %% Nginx Routing
+    NGINX -->|"Route /*"| WEB
+    NGINX -->|"Route /api/*"| API
+    NGINX -->|"Route /ai/*"| AI
+    NGINX -->|"Route /socket.io/* (WebSocket)"| API
 
     %% Internal Communication
-    API -->|"Internal HTTP [X-Request-Id Tracing]"| AI
-    API -->|"TCP / Auth"| REDIS
-    API -->|"Prisma ORM (SSL Pooler)"| NEON
-    AI -->|"asyncpg (SSL Pooler) + Cosine Distance"| NEON
-    API -->|"S3 API / Storage SDK"| SUPABASE
+    API -->|"Internal Service HTTP"| AI
+    API -->|"Sliding Window Rate Limit & Cache"| REDIS
+    API -->|"Prisma ORM (Connection Pool)"| POSTGRES
+    AI -->|"asyncpg Vector Similarity"| POSTGRES
 ```
-
-### Architectural Highlights
-
-- **Zero Public Surface for AI & Cache:** The `ai-service` and `redis` containers have no host port bindings. They communicate exclusively over the internal bridge network (`dokanos_net`), secured via `AI_INTERNAL_KEY`.
-- **Stateless App Containers:** Both `web` and `api` run as non-root containers with minimal memory footprints, enabling effortless horizontal scaling.
-- **Graceful Relational Degradation:** If the FastAPI microservice times out or exceeds latency thresholds, the API automatically falls back to indexed relational SQL search with zero customer-facing downtime.
 
 ---
 
-## Key Capabilities
+## Database Entity-Relationship Diagram
 
-### 1. Multi-Tenant Vendor Marketplace Core
+```mermaid
+erDiagram
+    User ||--o| SellerProfile : "has"
+    User ||--o| Cart : "owns"
+    User ||--o{ Order : "places"
+    User ||--o{ AuditLog : "triggers"
+    User ||--o{ Notification : "receives"
+    User ||--o{ Review : "writes"
 
-- **Storefront & Catalog Management:** Sellers configure custom storefronts, categories, SKUs, inventory thresholds, and multi-tier attributes.
-- **Strict Role-Based Access Control (RBAC):** Hierarchical guards (`CUSTOMER`, `SELLER`, `ADMIN`) preventing cross-store catalog mutation and unauthorized order inspection.
-- **Atomic Multi-Store Cart & Checkout:** Unified shopping cart spanning products from multiple independent stores, calculating vendor splits, shipping, and platform commissions atomically.
+    SellerProfile ||--o{ Store : "operates"
+    SellerProfile ||--o| SellerSubscription : "subscribes"
 
-### 2. Autonomous AI Vector Intelligence
+    Store ||--o{ Product : "lists"
+    Store ||--o| StoreTheme : "customizes"
+    Store ||--o{ StoreSection : "displays"
+    Store ||--o{ OrderItem : "fulfills"
 
-- **RAG Shopping Assistant (`POST /api/v1/ai/chat`):** Natural language shopping assistant extracting intent (budget limits, category, specs) and performing cosine-similarity searches across product embeddings.
-- **Seller Copywriting Copilot (`POST /api/v1/ai/copywrite`):** Generates high-converting marketing descriptions, bullet features, and SEO tags from minimal seller input.
-- **Pgvector Composite Recommendations (`GET /api/v1/ai/recommendations/:id`):** 1536-dimensional embedding similarity blended with category and rating signals for intelligent cross-selling.
+    Product ||--o{ ProductVariant : "has"
+    Product ||--o{ Inventory : "tracks"
+    Product ||--o{ ProductImage : "showcases"
+    Product ||--o| ProductEmbedding : "indexed_by"
+    Product ||--o{ Review : "collects"
 
-### 3. Financial Infrastructure & Dual Payment Gateways
+    Order ||--o{ OrderItem : "contains"
+    Order ||--o{ Payment : "settled_by"
 
-- **Stripe Integration:** Dynamic PaymentIntent generation, client-secret issuance, and cryptographically verified webhook event processing (`payment_intent.succeeded`).
-- **SSLCommerz Integration:** Session initiation, redirect gateways, and Instant Payment Notification (IPN) webhook handling for South Asian commerce.
-- **Inventory Reconciliation:** Auto-cancels abandoned checkout holds and automatically restores product inventory on payment cancellation.
-
-### 4. Real-Time Telemetry & Business Intelligence
-
-- **Live Event Ingestion (`POST /api/v1/analytics/events`):** High-throughput tracking for `PRODUCT_VIEW`, `CART_ADD`, and `PURCHASE` events.
-- **Seller Analytics Dashboard:** Real-time Gross Sales, Net Revenue, Orders, Conversion Rate, and AOV charts powered by Recharts.
-- **Admin Marketplace Intelligence:** Platform GMV, vendor growth trajectories, and net commission take-rate reporting.
+    Conversation ||--o{ Message : "contains"
+    Store ||--o{ Conversation : "handles"
+    User ||--o{ Conversation : "participates"
+```
 
 ---
 
-## Technology Stack
+## Autonomous AI Workflow
 
-| Layer                 | Technologies                                                                           | Architectural Purpose                                                               |
-| :-------------------- | :------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------- |
-| **Frontend**          | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, Lucide Icons, Recharts | Server-rendered storefront, client dashboards, standalone container build           |
-| **Backend API**       | NestJS 12, Express, Prisma ORM 6, Passport JWT, Socket.IO, Class-Validator, Swagger    | Modular monolith, transactional business logic, RBAC, WebSocket gateway             |
-| **AI Microservice**   | Python 3.12, FastAPI, Uvicorn, LangChain, OpenAI / Gemini API, asyncpg                 | High-performance embedding generation, semantic vector search, LLM RAG pipeline     |
-| **Database**          | PostgreSQL 16 + `pgvector`, NeonDB Serverless Pooler                                   | Single source of truth for ACID transactions & 1536-dim vector embeddings           |
-| **Cache & Real-time** | Redis 7 Alpine, `@socket.io/redis-adapter`, ioredis                                    | Distributed session cache, rate limiting, and multi-instance WebSocket pub/sub      |
-| **Quality & Tests**   | Jest, Playwright, Vitest, Oxlint, ESLint, Prettier, Husky, lint-staged                 | Unit testing, browser E2E flows, automated pre-commit governance                    |
-| **DevOps & CI/CD**    | Docker Multi-Stage, Docker Compose, GitHub Actions, Caddy 2, GHCR                      | Automated CI test pipelines, container image building, zero-downtime VPS deployment |
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Customer as Customer
+    participant Web as Next.js Web
+    participant Nginx as Nginx Proxy
+    participant API as NestJS Core API
+    participant AI as FastAPI Microservice
+    participant DB as PostgreSQL + pgvector
+    participant LLM as Google Gemini 1.5 Pro
+
+    Customer->>Web: "Find lightweight noise-cancelling headphones under $250"
+    Web->>Nginx: POST /api/v1/ai/chat
+    Nginx->>API: Proxy to NestJS Core API
+    API->>AI: Internal HTTP /recommendations/search
+
+    rect rgb(240, 248, 255)
+        note over AI,DB: Vector Embedding Generation & Semantic Search
+        AI->>LLM: Generate query embedding vector (1536-dim)
+        LLM-->>AI: Vector float array
+        AI->>DB: Cosine Distance Query with Price Filter (&lt; $250)
+        DB-->>AI: Top ranked candidate product records
+    end
+
+    alt Microservice Available
+        AI->>LLM: Formulate conversational response with product cards
+        LLM-->>AI: Synthesized JSON recommendation payload
+        AI-->>API: 200 OK Response
+    else Microservice Degraded / Timeout
+        API->>DB: Relational Fallback (Indexed ILIKE + Category Filter)
+        DB-->>API: Relational product results
+    end
+
+    API-->>Nginx: Unified standard response payload
+    Nginx-->>Web: JSON payload with product cards
+    Web-->>Customer: Interactive product recommendation view
+```
 
 ---
 
-## Local Development Quickstart
+## End-to-End Demo Flows
 
-### Prerequisites
+### 1. Customer Shopping Flow
 
-- **Node.js** >= 22.0.0
-- **pnpm** >= 10.0.0 (`npm i -g pnpm`)
-- **Python** >= 3.12 (for AI microservice)
-- **Docker & Docker Compose** (for PostgreSQL + pgvector and Redis)
+1. **Product Discovery**: Browse marketplace catalog or search by category, price, and tags.
+2. **AI Shopping Assistant**: Open conversational RAG drawer, enter natural language queries (e.g., _"Suggest a durable mechanical keyboard for coding"_), and receive real-time ranked recommendations with live stock data.
+3. **Cart & Atomic Checkout**: Add products from multiple independent stores to a unified shopping cart, specify shipping address, and complete payment via Stripe or SSLCommerz sandbox.
+4. **Order Tracking & Reviews**: Track order timeline (`PENDING` → `PAID` → `PROCESSING` → `SHIPPED` → `DELIVERED`) and submit verified purchase reviews.
 
-### 1. Clone & Install Dependencies
+### 2. Seller Store Builder & Operations Flow
 
-```bash
-git clone https://github.com/shahariarshawon/DokanOS.git
-cd DokanOS
+1. **Store Creation**: Register as a `SELLER`, choose custom store slug (e.g., `dokanos.com/store/tech-vault`), and configure business profile.
+2. **Store Builder Customization**: Live customizer for store themes (modern/minimalist/bold palettes, typography) and customizable homepage sections (Hero Banner, Featured Collection, About Us, Contact).
+3. **AI Product Copilot**: Create product SKUs; generate product title, rich markdown description, and SEO metadata with one click via AI Copilot.
+4. **Inventory & Order Fulfillment**: Track multi-variant inventory balances, view real-time incoming store orders, and update carrier tracking numbers.
 
-# Install monorepo dependencies
-pnpm install
-```
+### 3. Administrator Governance Flow
 
-### 2. Start Local Database & Redis (Docker)
+1. **Platform Oversight**: View platform-wide Gross Merchandise Value (GMV), net commission take-rate, and active merchant counts.
+2. **Merchant Verification**: Inspect pending seller verification documents and approve/reject stores.
+3. **Audit Log Inspection**: Review comprehensive audit logs at `GET /api/v1/audit-logs` filtering by user, action (`LOGIN`, `PRODUCT_UPDATED`, `ORDER_STATUS_CHANGED`, `PAYMENT_PROCESSED`), and resource ID.
 
-```bash
-# Starts PostgreSQL 16 with pgvector extension & Redis 7
-docker compose up -d
-```
+---
 
-### 3. Configure Environment Variables
+## Production Hardening & Security Standards
 
-```bash
-# Backend API (.env)
-cp apps/api/.env.example apps/api/.env
-
-# AI Service (.env)
-cp apps/ai-service/.env.example apps/ai-service/.env
-
-# Web Frontend (.env)
-cp apps/web/.env.example apps/web/.env.local
-```
-
-### 4. Run Prisma Migrations & Seed Database
-
-```bash
-# Push schema and generate Prisma client
-pnpm --filter api exec prisma migrate dev
-pnpm --filter api exec prisma db seed
-```
-
-### 5. Start the Monorepo Development Environment
-
-```bash
-# Starts Next.js Web (port 3000) and NestJS API (port 4000) via Turborepo
-pnpm run dev
-```
-
-In a separate terminal, launch the Python AI microservice:
-
-```bash
-cd apps/ai-service
-python -m venv venv
-# On Windows: venv\Scripts\activate | On macOS/Linux: source venv/bin/activate
-pip install -r requirements.txt
-python main.py
-```
-
-- **Storefront & Dashboard:** `http://localhost:3000`
-- **Backend API Gateway:** `http://localhost:4000/api/v1`
-- **Interactive Swagger Documentation:** `http://localhost:4000/api/docs`
-- **FastAPI AI Microservice:** `http://localhost:8000/docs`
+| Focus Area               | Hardening Mechanism                   | Details                                                                                                                       |
+| ------------------------ | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **Authentication**       | JWT Access & Refresh Token Rotation   | Stateless 15m access token; salted bcrypt hashed refresh token rotated on every issuance; clears sessions on password change. |
+| **Password Reset**       | Cryptographic One-Time Tokens         | Secure 256-bit random tokens with 1-hour expiration; generic response prevents email enumeration.                             |
+| **Email Verification**   | Account Activation                    | Cryptographic activation token with 24-hour expiration window.                                                                |
+| **Authorization (RBAC)** | Global Guard & Multi-Tenant Isolation | `CUSTOMER`, `SELLER`, and `ADMIN` role gates; Seller A cannot read/mutate Seller B stores, products, or orders.               |
+| **Rate Limiting**        | Sliding Window (Redis + Fallback)     | `RateLimitGuard` tracks `user:<id>` or `ip:<addr>` with `X-RateLimit-*` and `Retry-After` response headers (HTTP 429).        |
+| **Security Headers**     | Nginx + Helmet Middleware             | Enforces CSP, HSTS (`max-age=31536000`), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`.                          |
+| **Error Shielding**      | Centralized Exception Filter          | Masks internal server errors (500) and database stack traces in production; attaches correlation IDs.                         |
+| **Database Performance** | Prisma Composite Indexes              | Composite indexes on `Product`, `Order`, `Message`, and `AuditLog` for sub-10ms query execution.                              |
+| **Caching Strategy**     | Redis Key Invalidation                | Popular products, storefront listings, and store builder pages cached with automated purging on catalog mutations.            |
 
 ---
 
 ## Production Container Deployment
 
-DokanOS provides a production-hardened multi-container stack orchestrated via [docker-compose.prod.yml](file:///c:/Users/shaha/Desktop/portfolio-projects/DokanOS/docker-compose.prod.yml):
+DokanOS includes a complete multi-container production stack orchestrated via [docker-compose.prod.yml](file:///c:/Users/shaha/Desktop/portfolio-projects/DokanOS/docker-compose.prod.yml):
 
 ```bash
-# 1. Copy and populate the production environment template
-cp .env.production.example .env.production
+# 1. Clone repository on production host
+git clone https://github.com/shahariarshawon/DokanOS.git /opt/dokanos
+cd /opt/dokanos
 
-# 2. Build multi-stage production Docker containers
-docker compose -f docker-compose.prod.yml build
+# 2. Run automated VPS provisioning (installs Docker, UFW, Fail2ban)
+bash scripts/setup-vps.sh
 
-# 3. Launch stack in detached mode
-docker compose -f docker-compose.prod.yml up -d
+# 3. Configure production environment secrets
+cp .env.production.example apps/api/.env
+# Update DATABASE_URL, JWT secrets, Stripe keys, and DOMAIN_NAME
 
-# 4. Verify container health status
-docker compose -f docker-compose.prod.yml ps
+# 4. Build and start production service stack
+docker compose -f docker-compose.prod.yml up -d --build
+
+# 5. Issue Let's Encrypt SSL certificate
+docker compose -f docker-compose.prod.yml run --rm certbot certonly \
+  --webroot --webroot-path=/var/www/certbot \
+  -d yourdomain.com -d www.yourdomain.com
+
+# 6. Reload Nginx with SSL certificates
+docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
 ```
-
-### Automated Zero-Downtime Deployment
-
-Every push to `main` triggers [.github/workflows/deploy.yml](file:///c:/Users/shaha/Desktop/portfolio-projects/DokanOS/.github/workflows/deploy.yml), which:
-
-1. Builds multi-architecture images and pushes them to GitHub Container Registry (`ghcr.io`).
-2. SSHs into the production VPS host.
-3. Pulls new image digests and runs `npx prisma migrate deploy`.
-4. Executes rolling restart via `docker compose up -d --remove-orphans`.
-5. Verifies service health via `/api/v1/health`.
 
 ---
 
-## Testing & Quality Engineering
+## CI/CD Pipeline
 
-```bash
-# 1. Run Backend Unit & Service Tests (Jest)
-pnpm --filter api run test:jest
+Every commit to `main` executes the automated continuous integration and delivery pipeline:
 
-# 2. Run Monorepo Linter (Turbo + ESLint + Oxlint)
-pnpm run lint
+1. **Continuous Integration ([.github/workflows/ci.yml](file:///c:/Users/shaha/Desktop/portfolio-projects/DokanOS/.github/workflows/ci.yml))**:
+   - Monorepo dependency caching (`pnpm`).
+   - Code formatting validation (`prettier`).
+   - Linting check (`eslint` & `oxlint`).
+   - Prisma Client generation.
+   - Vitest backend test execution (17 test suites, 91 tests).
+   - Next.js and NestJS production build compilation.
+   - Python AI service flake8 linting and dependency verification.
+   - Multi-stage Dockerfile build validation.
 
-# 3. Check Code Formatting Compliance (Prettier)
-pnpm run format:check
+2. **Continuous Deployment ([.github/workflows/deploy.yml](file:///c:/Users/shaha/Desktop/portfolio-projects/DokanOS/.github/workflows/deploy.yml))**:
+   - Publishes production images to GitHub Container Registry (`ghcr.io`).
+   - Connects to production VPS host over secure SSH.
+   - Runs database migrations (`npx prisma migrate deploy`).
+   - Performs zero-downtime rolling container updates.
+   - Executes deployment health checks against `/api/v1/health`.
 
-# 4. Run Frontend End-to-End Tests (Playwright)
-pnpm --filter web run test:e2e
+---
+
+## Monitoring & Health Checks
+
+DokanOS provides a centralized health probe endpoint for cloud load balancers and uptime monitors:
+
+### `GET /api/v1/health`
+
+```json
+{
+  "status": "healthy",
+  "database": "connected",
+  "redis": "connected",
+  "timestamp": "2026-09-25T16:20:00.000Z",
+  "service": "dokanos-api",
+  "version": "1.0.0",
+  "uptime": 86420,
+  "memory": {
+    "heapUsedMb": 64,
+    "rssMb": 112
+  }
+}
 ```
 
-Full details on testing strategy, test pyramid, and P0/P1 business priority flows are documented in [phase-9-testing-security.md](file:///c:/Users/shaha/Desktop/portfolio-projects/DokanOS/docs/phase-9-testing-security.md).
+### Readiness Probe: `GET /api/v1/health/ready`
+
+Returns latency metrics across PostgreSQL connection pool, Redis cache ping, and Python AI service latency.
+
+---
+
+## Automated Backups & Disaster Recovery
+
+- **Automated Database Dumps**: [scripts/backup-db.sh](file:///c:/Users/shaha/Desktop/portfolio-projects/DokanOS/scripts/backup-db.sh) creates timestamped gzip-compressed PostgreSQL dumps with a 14-day retention cycle.
+- **Disaster Recovery Restore**: [scripts/restore-db.sh](file:///c:/Users/shaha/Desktop/portfolio-projects/DokanOS/scripts/restore-db.sh) validates and restores database dumps.
+- Full runbook documentation is located in [docs/BACKUP_AND_DISASTER_RECOVERY.md](file:///c:/Users/shaha/Desktop/portfolio-projects/DokanOS/docs/BACKUP_AND_DISASTER_RECOVERY.md).
 
 ---
 
 ## API Documentation
 
-Interactive OpenAPI / Swagger documentation is generated directly from TypeScript DTO decorators:
+Interactive Swagger documentation is available out of the box:
 
-- **Swagger UI:** `http://localhost:4000/api/docs`
-- **FastAPI Docs:** `http://localhost:8000/docs`
-- **Postman Collection:** `docs/postman/DokanOS_API.postman_collection.json`
-- **Postman Environment:** `docs/postman/DokanOS_Environment.postman_environment.json`
+- **Swagger UI:** `http://localhost:4000/api/docs` (or `https://yourdomain.com/api/docs`)
+- **FastAPI AI Docs:** `http://localhost:8000/docs`
+
+Key tagged API modules:
+
+- `/api/v1/auth`: Registration, login, token refresh, password reset, email verification.
+- `/api/v1/products`: Multi-variant catalog management, AI recommendations, reviews.
+- `/api/v1/stores`: Multi-tenant storefront builder, themes, custom layout sections.
+- `/api/v1/orders`: Multi-vendor cart checkout, fulfillment tracking, order status state machine.
+- `/api/v1/payments`: Stripe payment intents, SSLCommerz gateway, vendor subscriptions.
+- `/api/v1/ai`: Semantic vector search, RAG shopping assistant, copywriting copilot.
+- `/api/v1/chat`: Real-time buyer-seller conversations and WebSocket inbox.
+- `/api/v1/audit-logs`: Admin audit trails and governance logs.
 
 ---
 
-## Portfolio Highlights
+## Testing & Quality Engineering
 
-A summary of core technical challenges solved in DokanOS:
+DokanOS maintains 100% green test status with 91 tests across 17 test suites:
 
-- **Unified Relational & Vector Storage:** Eliminated complex dual-database sync pipelines (Elasticsearch/Pinecone + Postgres) by adopting **NeonDB `pgvector`** with 1536-dimensional HNSW indexes, executing transactional queries and vector similarity searches in a single database.
-- **Race Condition & Stock Atomicity Protection:** Addressed concurrent checkout overselling by wrapping inventory balance validation, atomic stock decrements, and order line item creation inside Prisma serializable transactions.
-- **Graceful AI Degradation:** Designed a circuit-breaking fallback pattern where FastAPI / LLM outages automatically transition shopping queries to indexed relational SQL searches with zero downtime.
-- **Polyglot Monorepo CI/CD:** Orchestrated TypeScript and Python services under a single Turborepo workspace, enforcing automated Prettier/ESLint hooks, Jest unit tests, and GitHub Container Registry deployments.
+```bash
+pnpm --filter api run test
+```
 
-Full resume descriptions, interview talking points, and LinkedIn showcase narratives are available in [portfolio-material.md](file:///c:/Users/shaha/Desktop/portfolio-projects/DokanOS/docs/portfolio-material.md).
+```text
+ ✓ src/auth/auth.service.spec.ts (15 tests)
+ ✓ src/auth/auth.security.spec.ts (4 tests)
+ ✓ src/common/guards/roles.guard.spec.ts (5 tests)
+ ✓ src/common/guards/rate-limit.guard.spec.ts (3 tests)
+ ✓ src/common/audit/audit.service.spec.ts (3 tests)
+ ✓ src/products/products.service.spec.ts (6 tests)
+ ✓ src/orders/orders.service.spec.ts (5 tests)
+ ✓ src/stores/stores.service.spec.ts (5 tests)
+ ✓ src/payments/payments.service.spec.ts (10 tests)
+ ✓ src/inventory/inventory.service.spec.ts (6 tests)
+ ✓ src/cart/cart.service.spec.ts (5 tests)
+ ✓ src/chat/chat.service.spec.ts (6 tests)
+ ✓ src/notifications/notifications.service.spec.ts (4 tests)
+ ✓ src/ai/ai.service.spec.ts (6 tests)
+ ✓ src/users/users.service.spec.ts (4 tests)
+ ✓ src/analytics/analytics.service.spec.ts (3 tests)
+ ✓ src/app.controller.spec.ts (1 test)
+
+ Test Files  17 passed (17)
+      Tests  91 passed (91)
+```
 
 ---
 
 ## License
 
-DokanOS is licensed under the [ISC License](LICENSE).
+DokanOS is open-source software licensed under the [ISC License](LICENSE).
 
 Developed by **[Al Shahariar Arafat Shawon](https://github.com/shahariarshawon)**.
