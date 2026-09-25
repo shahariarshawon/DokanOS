@@ -182,7 +182,37 @@ export default function ProductDetailPage() {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 lg:px-8 py-8">
+      <main id="main-content" className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 lg:px-8 py-8">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org/',
+              '@type': 'Product',
+              name: product.title,
+              image: [product.primaryImage, ...(product.galleryImages || [])],
+              description: product.description,
+              sku: activeSku,
+              offers: {
+                '@type': 'Offer',
+                url: `https://dokanos.com/products/${product.id}`,
+                priceCurrency: 'USD',
+                price: activePrice,
+                availability:
+                  activeStock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+                seller: {
+                  '@type': 'Organization',
+                  name: product.storeName,
+                },
+              },
+              aggregateRating: {
+                '@type': 'AggregateRating',
+                ratingValue: product.rating,
+                reviewCount: product.reviewCount || 1,
+              },
+            }),
+          }}
+        />
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-xs text-zinc-500 mb-6">
           <Link href="/products" className="hover:text-zinc-900 transition-colors">

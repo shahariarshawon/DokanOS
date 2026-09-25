@@ -23,6 +23,7 @@ import { AnalyticsModule } from './analytics/analytics.module.js';
 import { InventoryModule } from './inventory/inventory.module.js';
 import { UploadModule } from './common/upload/upload.module.js';
 import { AuditModule } from './common/audit/audit.module.js';
+import { AdminModule } from './admin/admin.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 
@@ -38,6 +39,7 @@ import { RateLimitGuard } from './common/guards/rate-limit.guard.js';
     DatabaseModule,
     RedisModule,
     AuditModule,
+    AdminModule,
     UsersModule,
     AuthModule,
     StoresModule,
