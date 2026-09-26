@@ -13,7 +13,7 @@ import { AdjustStockDto } from './dto/adjust-stock.dto.js';
 import { QueryInventoryTransactionsDto } from './dto/query-inventory-transactions.dto.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { Roles } from '../common/decorators/roles.decorator.js';
-import { UserRole } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
 
 @ApiTags('Inventory Management')
 @ApiBearerAuth()

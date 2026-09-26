@@ -21,7 +21,7 @@ import { CreateReviewDto } from './dto/create-review.dto.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
 import { Roles } from '../common/decorators/roles.decorator.js';
-import { UserRole } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
 
 @ApiTags('Products')
 @Controller('products')

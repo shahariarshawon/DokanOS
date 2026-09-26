@@ -18,7 +18,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
 import type { Request, Response } from 'express';
 import { AnalyticsService } from './analytics.service.js';
 import { TrackEventDto } from './dto/track-event.dto.js';
