@@ -17,7 +17,7 @@
     "prisma:generate": "pnpm --filter api run prisma:generate",
     "prisma:push": "pnpm --filter api exec prisma db push",
     "prisma:migrate": "pnpm --filter api exec prisma migrate deploy",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,json,md,css}": [
