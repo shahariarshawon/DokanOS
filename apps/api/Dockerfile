@@ -12,7 +12,7 @@ RUN apk add --no-cache libc6-compat openssl
 # Stage 2: Dependencies
 FROM base AS dependencies
 WORKDIR /app
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY .npmrc* pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY packages/ ./packages/
 
