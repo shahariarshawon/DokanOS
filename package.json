@@ -14,6 +14,9 @@
     "test:api": "pnpm --filter api run test",
     "test:api:jest": "pnpm --filter api run test:jest",
     "test:e2e": "pnpm --filter web run test:e2e",
+    "prisma:generate": "pnpm --filter api run prisma:generate",
+    "prisma:push": "pnpm --filter api exec prisma db push",
+    "prisma:migrate": "pnpm --filter api exec prisma migrate deploy",
     "prepare": "husky"
   },
   "lint-staged": {
