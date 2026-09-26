@@ -29,7 +29,7 @@ RUN pnpm --filter api exec prisma generate
 RUN pnpm --filter api build
 
 # Prune devDependencies for minimal production image
-RUN pnpm --filter api --prod deploy /app/pruned-api
+RUN pnpm --filter api --prod deploy --legacy /app/pruned-api
 
 # Stage 4: Production Runner
 FROM node:22-alpine AS runner
