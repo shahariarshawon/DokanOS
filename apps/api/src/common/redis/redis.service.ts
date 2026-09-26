@@ -30,6 +30,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     const options = {
       maxRetriesPerRequest: null,
       enableReadyCheck: true,
+      connectTimeout: 5000,
       retryStrategy: (times: number) => {
         const delay = Math.min(times * 100, 3000);
         return delay;

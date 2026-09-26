@@ -119,7 +119,7 @@ async function bootstrap() {
   SwaggerModule.setup('api/v1/docs', app, document);
   SwaggerModule.setup('docs', app, document);
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   logger.log(
     `🚀 DokanOS Core API running in [${env}] mode on port ${port} (http://localhost:${port}/api/v1)`,
   );

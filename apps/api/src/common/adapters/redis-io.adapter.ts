@@ -26,6 +26,7 @@ export class RedisIoAdapter extends IoAdapter {
       const options = {
         maxRetriesPerRequest: null,
         enableReadyCheck: true,
+        connectTimeout: 5000,
       };
 
       const pubClient: Redis = redisUrl
@@ -39,7 +40,7 @@ export class RedisIoAdapter extends IoAdapter {
 
       const subClient: Redis = pubClient.duplicate();
 
-      await Promise.all([
+      const connectPromise = Promise.all([
         new Promise<void>((resolve, reject) => {
           pubClient.once('ready', () => resolve());
           pubClient.once('error', (err) => reject(err));
@@ -49,6 +50,15 @@ export class RedisIoAdapter extends IoAdapter {
           subClient.once('error', (err) => reject(err));
         }),
       ]);
+
+      const timeoutPromise = new Promise<void>((_, reject) =>
+        setTimeout(
+          () => reject(new Error('Redis connection timed out after 5 seconds')),
+          5000,
+        ),
+      );
+
+      await Promise.race([connectPromise, timeoutPromise]);
 
       this.adapterConstructor = createAdapter(pubClient, subClient);
       this.adapterLogger.log(
