@@ -31,6 +31,11 @@ RUN pnpm --filter api build
 # Prune devDependencies for minimal production image
 RUN pnpm --filter api --prod deploy --legacy /app/pruned-api
 
+# Generate & copy Prisma Client inside pruned-api so production node_modules has full engine & enums
+WORKDIR /app/pruned-api
+RUN cp -R /app/node_modules/.pnpm/@prisma+client* /app/pruned-api/node_modules/.pnpm/ || true
+RUN pnpm exec prisma generate --schema=/app/apps/api/prisma/schema.prisma
+
 # Stage 4: Production Runner
 FROM node:22-alpine AS runner
 WORKDIR /app
@@ -53,7 +58,7 @@ COPY --chown=node:node --from=builder /app/apps/api/package.json ./package.json
 EXPOSE 4000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:4000/api/v1/health || exit 1
+  CMD curl -f http://localhost:${PORT:-4000}/api/v1/health || exit 1
 
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "dist/main.js"]

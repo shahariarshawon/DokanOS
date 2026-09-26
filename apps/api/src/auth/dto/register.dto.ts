@@ -8,6 +8,12 @@ import {
 } from 'class-validator';
 import { Prisma, UserRole } from '@prisma/client';
 
+const SafeUserRole = UserRole || {
+  CUSTOMER: 'CUSTOMER',
+  SELLER: 'SELLER',
+  ADMIN: 'ADMIN',
+};
+
 export class RegisterDto {
   @IsEmail({}, { message: 'Must provide a valid email address' })
   @IsNotEmpty()
@@ -29,7 +35,7 @@ export class RegisterDto {
   @IsOptional()
   phone?: string;
 
-  @IsEnum(UserRole, { message: 'Role must be CUSTOMER or SELLER' })
+  @IsEnum(SafeUserRole, { message: 'Role must be CUSTOMER or SELLER' })
   @IsOptional()
   role?: UserRole;
 }
